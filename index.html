@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>TuneMaker</title>
+		<style>
+			:root {
+				--bg-1: #0f172a;
+				--bg-2: #1e293b;
+				--panel: rgba(15, 23, 42, 0.78);
+				--panel-border: rgba(148, 163, 184, 0.28);
+				--accent: #22d3ee;
+				--accent-2: #f59e0b;
+				--text: #e2e8f0;
+				--muted: #94a3b8;
+				--success: #34d399;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+				color: var(--text);
+				background:
+					radial-gradient(
+						circle at 15% 20%,
+						rgba(34, 211, 238, 0.25),
+						transparent 40%
+					),
+					radial-gradient(
+						circle at 85% 10%,
+						rgba(245, 158, 11, 0.22),
+						transparent 35%
+					),
+					linear-gradient(135deg, var(--bg-1), var(--bg-2));
+				display: grid;
+				place-items: center;
+				padding: 20px;
+			}
+
+			.app-shell {
+				width: min(980px, 100%);
+				border: 1px solid var(--panel-border);
+				border-radius: 18px;
+				overflow: hidden;
+				background: var(--panel);
+				box-shadow: 0 20px 60px rgba(2, 6, 23, 0.55);
+				backdrop-filter: blur(8px);
+			}
+
+			.hero {
+				padding: 22px 24px 16px;
+				border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+			}
+
+			.title {
+				margin: 0;
+				font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+				letter-spacing: 1px;
+				color: white;
+			}
+
+			.subtitle {
+				margin: 8px 0 0;
+				color: var(--muted);
+				font-size: 0.98rem;
+			}
+
+			.content {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 16px;
+				padding: 20px;
+			}
+
+			.card {
+				border: 1px solid rgba(148, 163, 184, 0.2);
+				border-radius: 14px;
+				padding: 16px;
+				background: rgba(15, 23, 42, 0.58);
+			}
+
+			.label {
+				font-size: 0.86rem;
+				color: var(--muted);
+				margin-bottom: 8px;
+				display: block;
+			}
+
+			.control-grid {
+				display: grid;
+				gap: 12px;
+			}
+
+			select,
+			input[type='number'],
+			input[type='range'],
+			button {
+				width: 100%;
+				border-radius: 10px;
+				border: 1px solid rgba(148, 163, 184, 0.4);
+				background: rgba(15, 23, 42, 0.95);
+				color: var(--text);
+				padding: 10px 12px;
+				font-size: 0.96rem;
+			}
+
+			input[type='range'] {
+				padding: 8px 0;
+			}
+
+			.btn-row {
+				display: flex;
+				gap: 10px;
+				flex-wrap: wrap;
+				margin-top: 12px;
+			}
+
+			button {
+				cursor: pointer;
+				transition:
+					transform 120ms ease,
+					border-color 120ms ease;
+				font-weight: 600;
+				min-width: 120px;
+				flex: 1;
+			}
+
+			button:hover {
+				transform: translateY(-1px);
+				border-color: var(--accent);
+			}
+
+			.go {
+				background: linear-gradient(135deg, var(--accent), #0891b2);
+				color: #042f2e;
+				border-color: transparent;
+			}
+
+			.secondary {
+				background: linear-gradient(135deg, #334155, #1e293b);
+			}
+
+			.status {
+				margin-top: 10px;
+				color: var(--success);
+				min-height: 1.35rem;
+				font-size: 0.92rem;
+			}
+
+			.phrase {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+				margin-top: 12px;
+			}
+
+			.chip {
+				padding: 6px 10px;
+				border-radius: 999px;
+				border: 1px solid rgba(34, 211, 238, 0.45);
+				background: rgba(8, 145, 178, 0.2);
+				font-size: 0.86rem;
+				transition:
+					transform 80ms ease,
+					background 80ms ease,
+					box-shadow 80ms ease,
+					border-color 80ms ease;
+			}
+
+			.chip.playing {
+				background: var(--accent);
+				color: #042f2e;
+				border-color: var(--accent);
+				box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+				transform: translateY(-2px) scale(1.05);
+			}
+
+			.pending {
+				color: var(--accent-2);
+				font-size: 0.88rem;
+				margin-top: 10px;
+				min-height: 1.2rem;
+			}
+
+			@media (max-width: 860px) {
+				.content {
+					grid-template-columns: 1fr;
+				}
+
+				.btn-row {
+					flex-direction: column;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app" class="app-shell">
+			<header class="hero">
+				<h1 class="title">TuneMaker</h1>
+				<p class="subtitle">
+					Build a chord, generate a random 4-note loop, and export to MIDI.
+				</p>
+			</header>
+
+			<main class="content">
+				<section class="card control-grid">
+					<div>
+						<label class="label" for="root">Chord Root</label>
+						<select id="root" v-model="selectedRoot">
+							<option v-for="root in roots" :key="root" :value="root">
+								{{ root }}
+							</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="label" for="variation">Variation</label>
+						<select id="variation" v-model="selectedVariation">
+							<option
+								v-for="variation in variationOptions"
+								:key="variation.name"
+								:value="variation.name"
+							>
+								{{ variation.label }}
+							</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="label" for="tempo">Tempo (BPM): {{ tempo }}</label>
+						<input
+							id="tempo"
+							type="range"
+							min="60"
+							max="200"
+							step="1"
+							v-model.number="tempo"
+						/>
+					</div>
+
+					<div>
+						<label class="label" for="instrument">Instrument</label>
+						<select id="instrument" v-model="selectedInstrument">
+							<option
+								v-for="instrument in instruments"
+								:key="instrument.name"
+								:value="instrument.name"
+							>
+								{{ instrument.label }}
+							</option>
+						</select>
+					</div>
+
+					<div class="btn-row">
+						<button class="go" @click="handleGo">Go</button>
+						<button class="secondary" @click="exportMidi">Export MIDI</button>
+						<button class="secondary" @click="togglePlay">
+							{{ isPlaying ? 'Pause' : 'Play' }}
+						</button>
+					</div>
+
+					<p class="status">{{ status }}</p>
+				</section>
+
+				<section class="card">
+					<strong>Current Phrase (4 notes)</strong>
+					<div class="phrase">
+						<span
+							class="chip"
+							:class="{ playing: isPlaying && playingIndex === idx }"
+							v-for="(note, idx) in phraseLabels"
+							:key="idx"
+							>{{ note }}</span
+						>
+					</div>
+
+					<div class="pending">{{ pendingMessage }}</div>
+
+					<p class="subtitle" style="margin-top: 14px">
+						Selected chord:
+						<strong>{{ selectedRoot }} {{ selectedVariation }}</strong><br />
+						Chord tones: {{ chordToneLabels.join(', ') || 'N/A' }}
+					</p>
+				</section>
+			</main>
+		</div>
+
+		<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+		<script>
+			const { createApp } = Vue;
+
+			createApp({
+				data() {
+					return {
+						roots: [
+							'A',
+							'A#',
+							'B',
+							'C',
+							'C#',
+							'D',
+							'D#',
+							'E',
+							'F',
+							'F#',
+							'G',
+							'G#',
+						],
+						variationOptions: [
+							{ name: 'major', label: 'Major', intervals: [0, 4, 7] },
+							{ name: 'minor', label: 'Minor', intervals: [0, 3, 7] },
+							{ name: '7th', label: 'Dominant 7th', intervals: [0, 4, 7, 10] },
+							{ name: 'maj7', label: 'Major 7th', intervals: [0, 4, 7, 11] },
+							{ name: 'min7', label: 'Minor 7th', intervals: [0, 3, 7, 10] },
+							{ name: 'sus2', label: 'Sus2', intervals: [0, 2, 7] },
+							{ name: 'sus4', label: 'Sus4', intervals: [0, 5, 7] },
+							{ name: 'dim', label: 'Diminished', intervals: [0, 3, 6] },
+							{ name: 'aug', label: 'Augmented', intervals: [0, 4, 8] },
+						],
+						instruments: [
+							{
+								name: 'warm-keys',
+								label: 'Warm Keys',
+								midiProgram: 0,
+							},
+							{
+								name: 'pluck',
+								label: 'Pluck',
+								midiProgram: 24,
+							},
+							{
+								name: 'organ',
+								label: 'Organ',
+								midiProgram: 19,
+							},
+							{
+								name: 'bass',
+								label: 'Bass',
+								midiProgram: 33,
+							},
+							{
+								name: 'mallet',
+								label: 'Mallet',
+								midiProgram: 12,
+							},
+						],
+						selectedRoot: 'C',
+						selectedVariation: 'minor',
+						selectedInstrument: 'warm-keys',
+						tempo: 110,
+						phrase: [],
+						pendingPhrase: null,
+						status: 'Press Go to generate and start playback.',
+						isPlaying: false,
+						stepIndex: 0,
+						playingIndex: -1,
+						loopTimerId: null,
+						midiNoteNames: [
+							'C',
+							'C#',
+							'D',
+							'D#',
+							'E',
+							'F',
+							'F#',
+							'G',
+							'G#',
+							'A',
+							'A#',
+							'B',
+						],
+					};
+				},
+				computed: {
+					selectedVariationObj() {
+						return this.variationOptions.find(
+							(v) => v.name === this.selectedVariation,
+						);
+					},
+					chordToneMidiClasses() {
+						if (!this.selectedVariationObj) {
+							return [];
+						}
+
+						const rootMap = {
+							C: 0,
+							'C#': 1,
+							D: 2,
+							'D#': 3,
+							E: 4,
+							F: 5,
+							'F#': 6,
+							G: 7,
+							'G#': 8,
+							A: 9,
+							'A#': 10,
+							B: 11,
+						};
+
+						const rootClass = rootMap[this.selectedRoot];
+						return this.selectedVariationObj.intervals.map(
+							(interval) => (rootClass + interval) % 12,
+						);
+					},
+					chordToneLabels() {
+						return this.chordToneMidiClasses.map(
+							(pc) => this.midiNoteNames[pc],
+						);
+					},
+					phraseLabels() {
+						return this.phrase.length
+							? this.phrase.map(
+									(n) =>
+										`${this.midiToLabel(n.midi)} · ${this.durationLabel(
+											n.beats,
+										)}`,
+								)
+							: ['No phrase yet'];
+					},
+					pendingMessage() {
+						if (!this.pendingPhrase) {
+							return '';
+						}
+
+						return 'New phrase queued and will start at the next loop boundary.';
+					},
+				},
+				watch: {
+					tempo() {
+						// The recursive scheduler reads the tempo fresh on every step,
+						// so a tempo change is picked up automatically on the next note.
+					},
+					selectedInstrument() {
+						if (this.isPlaying) {
+							this.status = 'Instrument updated.';
+						}
+					},
+				},
+				methods: {
+					randomItem(list) {
+						return list[Math.floor(Math.random() * list.length)];
+					},
+					buildRandomPhrase() {
+						const octaves = [2, 3, 4, 5];
+						// Durations in quarter-note beats: 1/16, 1/8, 1/4, 1/2, whole.
+						const durations = [0.25, 0.5, 1, 2, 4];
+						const phrase = [];
+
+						for (let i = 0; i < 4; i += 1) {
+							const pitchClass = this.randomItem(this.chordToneMidiClasses);
+							const octave = this.randomItem(octaves);
+							phrase.push({
+								midi: octave * 12 + pitchClass,
+								beats: this.randomItem(durations),
+							});
+						}
+
+						return phrase;
+					},
+					durationLabel(beats) {
+						const map = {
+							0.25: '1/16',
+							0.5: '1/8',
+							1: '1/4',
+							2: '1/2',
+							4: 'whole',
+						};
+						return map[beats] || `${beats} beat`;
+					},
+					midiToFreq(midi) {
+						return 440 * Math.pow(2, (midi - 69) / 12);
+					},
+					midiToLabel(midi) {
+						const name = this.midiNoteNames[midi % 12];
+						const octave = Math.floor(midi / 12) - 1;
+						return `${name}${octave}`;
+					},
+					getSelectedInstrument() {
+						return (
+							this.instruments.find(
+								(ins) => ins.name === this.selectedInstrument,
+							) || this.instruments[0]
+						);
+					},
+					ensureAudioContext() {
+						// IMPORTANT: keep audio nodes OUT of Vue's reactive data.
+						// Wrapping AudioContext/AudioNode in a reactive Proxy breaks
+						// the WebAudio graph and produces silent output.
+						if (!this._audio) {
+							const AudioContextClass =
+								window.AudioContext || window.webkitAudioContext;
+							const ctx = new AudioContextClass();
+							const master = ctx.createGain();
+							master.gain.value = 0.6;
+							master.connect(ctx.destination);
+							this._audio = { ctx, master };
+						}
+					},
+					getInstrumentVoice() {
+						const instrument = this.getSelectedInstrument().name;
+
+						if (instrument === 'warm-keys') {
+							return {
+								type: 'triangle',
+								attack: 0.01,
+								release: 0.28,
+								volume: 0.22,
+							};
+						}
+						if (instrument === 'pluck') {
+							return {
+								type: 'square',
+								attack: 0.002,
+								release: 0.12,
+								volume: 0.18,
+							};
+						}
+						if (instrument === 'organ') {
+							return { type: 'sine', attack: 0.02, release: 0.18, volume: 0.2 };
+						}
+						if (instrument === 'bass') {
+							return {
+								type: 'sawtooth',
+								attack: 0.004,
+								release: 0.22,
+								volume: 0.2,
+							};
+						}
+
+						return { type: 'sine', attack: 0.002, release: 0.14, volume: 0.2 };
+					},
+					playStepNote(note) {
+						if (!this._audio) {
+							return;
+						}
+
+						const { ctx, master } = this._audio;
+						const voice = this.getInstrumentVoice();
+						const now = ctx.currentTime;
+						const freq = this.midiToFreq(note.midi);
+
+						const beatSec = this.getBeatMs() / 1000;
+						const durSec = Math.max(0.08, note.beats * beatSec);
+						const attack = Math.min(voice.attack, durSec * 0.5);
+						const release = Math.min(voice.release, durSec * 0.9);
+						const end = now + durSec;
+						const sustainUntil = Math.max(now + attack, end - release);
+
+						const osc = ctx.createOscillator();
+						const gain = ctx.createGain();
+
+						osc.type = voice.type;
+						osc.frequency.setValueAtTime(freq, now);
+
+						gain.gain.setValueAtTime(0.0001, now);
+						gain.gain.linearRampToValueAtTime(voice.volume, now + attack);
+						gain.gain.setValueAtTime(voice.volume, sustainUntil);
+						gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+						osc.connect(gain);
+						gain.connect(master);
+
+						osc.start(now);
+						osc.stop(end + 0.03);
+					},
+					tickLoop() {
+						if (!this.phrase.length || !this.isPlaying) {
+							return;
+						}
+
+						const note = this.phrase[this.stepIndex];
+						this.playStepNote(note);
+						this.playingIndex = this.stepIndex;
+
+						const stepMs = Math.max(60, note.beats * this.getBeatMs());
+
+						this.stepIndex += 1;
+						if (this.stepIndex >= this.phrase.length) {
+							this.stepIndex = 0;
+
+							if (this.pendingPhrase) {
+								this.phrase = this.pendingPhrase;
+								this.pendingPhrase = null;
+								this.status = 'Queued phrase is now live.';
+							}
+						}
+
+						// Each note self-schedules the next step using its own duration,
+						// so the loop can mix 1/16 notes through whole notes.
+						this.loopTimerId = window.setTimeout(() => {
+							this.tickLoop();
+						}, stepMs);
+					},
+					getBeatMs() {
+						return Math.max(80, Math.floor(60000 / this.tempo));
+					},
+					startLoopTimer() {
+						this.stopLoopTimer();
+						this.tickLoop();
+					},
+					stopLoopTimer() {
+						if (this.loopTimerId !== null) {
+							window.clearTimeout(this.loopTimerId);
+							this.loopTimerId = null;
+						}
+						this.playingIndex = -1;
+					},
+					restartLoopTimer() {
+						if (this.isPlaying) {
+							this.startLoopTimer();
+						}
+					},
+					async handleGo() {
+						this.ensureAudioContext();
+						await this._audio.ctx.resume();
+						const newPhrase = this.buildRandomPhrase();
+
+						if (this.phrase.length && this.isPlaying) {
+							this.pendingPhrase = newPhrase;
+							this.status =
+								'New chord phrase queued; it will switch on the next loop.';
+						} else {
+							this.phrase = newPhrase;
+							this.pendingPhrase = null;
+							this.stepIndex = 0;
+							this.status = 'New phrase generated and playing.';
+						}
+
+						if (!this.isPlaying) {
+							this.isPlaying = true;
+							this.startLoopTimer();
+						}
+					},
+					async togglePlay() {
+						this.ensureAudioContext();
+						await this._audio.ctx.resume();
+
+						if (!this.phrase.length) {
+							this.phrase = this.buildRandomPhrase();
+							this.stepIndex = 0;
+						}
+
+						this.isPlaying = !this.isPlaying;
+
+						if (this.isPlaying) {
+							this.startLoopTimer();
+							this.status = 'Playback running.';
+						} else {
+							this.stopLoopTimer();
+							this.status = 'Playback paused.';
+						}
+					},
+					encodeVarLen(value) {
+						let buffer = value & 0x7f;
+						const bytes = [];
+
+						while ((value >>= 7)) {
+							buffer <<= 8;
+							buffer |= (value & 0x7f) | 0x80;
+						}
+
+						while (true) {
+							bytes.push(buffer & 0xff);
+							if (buffer & 0x80) {
+								buffer >>= 8;
+							} else {
+								break;
+							}
+						}
+
+						return bytes;
+					},
+					buildMidiBytes() {
+						if (!this.phrase.length) {
+							return null;
+						}
+
+						const ppq = 480;
+						const events = [];
+						const loopsToExport = 8;
+						const microPerQuarter = Math.floor(60000000 / this.tempo);
+						const instrument = this.getSelectedInstrument();
+
+						events.push({ tick: 0, type: 'tempo', mpq: microPerQuarter });
+						events.push({
+							tick: 0,
+							type: 'program',
+							program: instrument.midiProgram,
+						});
+
+						let cursor = 0;
+
+						for (let loop = 0; loop < loopsToExport; loop += 1) {
+							for (let s = 0; s < this.phrase.length; s += 1) {
+								const step = this.phrase[s];
+								const durTicks = Math.max(1, Math.round(step.beats * ppq));
+								const start = cursor;
+								const end = start + durTicks;
+
+								events.push({
+									tick: start,
+									type: 'on',
+									note: step.midi,
+									velocity: 96,
+								});
+								events.push({
+									tick: end,
+									type: 'off',
+									note: step.midi,
+									velocity: 0,
+								});
+
+								cursor = end;
+							}
+						}
+
+						const typeOrder = { tempo: 0, program: 1, off: 2, on: 3, end: 4 };
+						const endTick = cursor;
+						events.push({ tick: endTick, type: 'end' });
+
+						events.sort((a, b) => {
+							if (a.tick !== b.tick) {
+								return a.tick - b.tick;
+							}
+
+							return typeOrder[a.type] - typeOrder[b.type];
+						});
+
+						const trackData = [];
+						let previousTick = 0;
+
+						events.forEach((event) => {
+							const delta = event.tick - previousTick;
+							trackData.push(...this.encodeVarLen(delta));
+
+							if (event.type === 'tempo') {
+								trackData.push(0xff, 0x51, 0x03);
+								trackData.push(
+									(event.mpq >> 16) & 0xff,
+									(event.mpq >> 8) & 0xff,
+									event.mpq & 0xff,
+								);
+							} else if (event.type === 'program') {
+								trackData.push(0xc0, event.program & 0x7f);
+							} else if (event.type === 'on') {
+								trackData.push(0x90, event.note & 0x7f, event.velocity & 0x7f);
+							} else if (event.type === 'off') {
+								trackData.push(0x80, event.note & 0x7f, event.velocity & 0x7f);
+							} else if (event.type === 'end') {
+								trackData.push(0xff, 0x2f, 0x00);
+							}
+
+							previousTick = event.tick;
+						});
+
+						const header = [
+							0x4d,
+							0x54,
+							0x68,
+							0x64,
+							0x00,
+							0x00,
+							0x00,
+							0x06,
+							0x00,
+							0x00,
+							0x00,
+							0x01,
+							(ppq >> 8) & 0xff,
+							ppq & 0xff,
+						];
+
+						const trackLength = trackData.length;
+						const trackHeader = [
+							0x4d,
+							0x54,
+							0x72,
+							0x6b,
+							(trackLength >> 24) & 0xff,
+							(trackLength >> 16) & 0xff,
+							(trackLength >> 8) & 0xff,
+							trackLength & 0xff,
+						];
+
+						return new Uint8Array([...header, ...trackHeader, ...trackData]);
+					},
+					exportMidi() {
+						if (!this.phrase.length) {
+							this.status = 'Generate a phrase first, then export MIDI.';
+							return;
+						}
+
+						const bytes = this.buildMidiBytes();
+						if (!bytes) {
+							this.status = 'MIDI export failed.';
+							return;
+						}
+
+						const blob = new Blob([bytes], { type: 'audio/midi' });
+						const url = URL.createObjectURL(blob);
+						const a = document.createElement('a');
+						const safeVariation = this.selectedVariation.replace(/\s+/g, '-');
+						a.href = url;
+						a.download = `tunemaker-${this.selectedRoot}-${safeVariation}.mid`;
+						document.body.appendChild(a);
+						a.click();
+						a.remove();
+						URL.revokeObjectURL(url);
+
+						this.status = 'MIDI file exported.';
+					},
+				},
+			}).mount('#app');
+		</script>
+	</body>
+</html>
