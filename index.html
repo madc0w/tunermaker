@@ -329,26 +329,188 @@
 								name: 'warm-keys',
 								label: 'Warm Keys',
 								midiProgram: 0,
+								voice: {
+									attack: 0.01,
+									release: 0.28,
+									volume: 0.22,
+									layers: [{ type: 'triangle' }],
+								},
+							},
+							{
+								name: 'e-piano',
+								label: 'Electric Piano',
+								midiProgram: 4,
+								voice: {
+									attack: 0.005,
+									release: 0.3,
+									volume: 0.2,
+									layers: [
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.35 },
+									],
+								},
 							},
 							{
 								name: 'pluck',
 								label: 'Pluck',
 								midiProgram: 24,
+								voice: {
+									attack: 0.002,
+									release: 0.12,
+									volume: 0.18,
+									layers: [{ type: 'square' }],
+								},
+							},
+							{
+								name: 'harpsichord',
+								label: 'Harpsichord',
+								midiProgram: 6,
+								voice: {
+									attack: 0.001,
+									release: 0.1,
+									volume: 0.15,
+									layers: [
+										{ type: 'square', gain: 1 },
+										{ type: 'square', ratio: 2, gain: 0.4 },
+									],
+								},
 							},
 							{
 								name: 'organ',
 								label: 'Organ',
 								midiProgram: 19,
+								voice: {
+									attack: 0.02,
+									release: 0.18,
+									volume: 0.18,
+									layers: [
+										{ type: 'sine', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.6 },
+										{ type: 'sine', ratio: 3, gain: 0.3 },
+									],
+								},
+							},
+							{
+								name: 'strings',
+								label: 'Strings',
+								midiProgram: 48,
+								voice: {
+									attack: 0.12,
+									release: 0.4,
+									volume: 0.16,
+									layers: [
+										{ type: 'sawtooth', detune: -7, gain: 1 },
+										{ type: 'sawtooth', detune: 7, gain: 1 },
+									],
+								},
+							},
+							{
+								name: 'brass',
+								label: 'Brass',
+								midiProgram: 61,
+								voice: {
+									attack: 0.04,
+									release: 0.2,
+									volume: 0.16,
+									layers: [
+										{ type: 'sawtooth', detune: -4, gain: 1 },
+										{ type: 'sawtooth', detune: 4, gain: 1 },
+									],
+								},
+							},
+							{
+								name: 'flute',
+								label: 'Flute',
+								midiProgram: 73,
+								voice: {
+									attack: 0.06,
+									release: 0.2,
+									volume: 0.22,
+									layers: [
+										{ type: 'sine', gain: 1 },
+										{ type: 'triangle', ratio: 2, gain: 0.12 },
+									],
+								},
+							},
+							{
+								name: 'bell',
+								label: 'Bell',
+								midiProgram: 14,
+								voice: {
+									attack: 0.001,
+									release: 0.5,
+									volume: 0.16,
+									layers: [
+										{ type: 'sine', gain: 1 },
+										{ type: 'sine', ratio: 3.01, gain: 0.4 },
+										{ type: 'sine', ratio: 5.02, gain: 0.18 },
+									],
+								},
+							},
+							{
+								name: 'synth-lead',
+								label: 'Synth Lead',
+								midiProgram: 81,
+								voice: {
+									attack: 0.005,
+									release: 0.2,
+									volume: 0.16,
+									layers: [
+										{ type: 'square', detune: -8, gain: 1 },
+										{ type: 'sawtooth', detune: 8, gain: 0.6 },
+									],
+								},
+							},
+							{
+								name: 'pad',
+								label: 'Warm Pad',
+								midiProgram: 89,
+								voice: {
+									attack: 0.18,
+									release: 0.5,
+									volume: 0.16,
+									layers: [
+										{ type: 'triangle', detune: -6, gain: 1 },
+										{ type: 'triangle', detune: 6, gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.3 },
+									],
+								},
 							},
 							{
 								name: 'bass',
 								label: 'Bass',
 								midiProgram: 33,
+								voice: {
+									attack: 0.004,
+									release: 0.22,
+									volume: 0.2,
+									layers: [{ type: 'sawtooth' }],
+								},
+							},
+							{
+								name: 'sub-bass',
+								label: 'Sub Bass',
+								midiProgram: 38,
+								voice: {
+									attack: 0.006,
+									release: 0.25,
+									volume: 0.22,
+									layers: [
+										{ type: 'sine', gain: 1 },
+										{ type: 'triangle', ratio: 2, gain: 0.25 },
+									],
+								},
 							},
 							{
 								name: 'mallet',
 								label: 'Mallet',
 								midiProgram: 12,
+								voice: {
+									attack: 0.001,
+									release: 0.16,
+									volume: 0.2,
+									layers: [{ type: 'sine' }],
+								},
 							},
 						],
 						selectedRoot: 'C',
@@ -504,37 +666,18 @@
 						}
 					},
 					getInstrumentVoice() {
-						const instrument = this.getSelectedInstrument().name;
+						const instrument = this.getSelectedInstrument();
 
-						if (instrument === 'warm-keys') {
-							return {
-								type: 'triangle',
-								attack: 0.01,
-								release: 0.28,
-								volume: 0.22,
-							};
-						}
-						if (instrument === 'pluck') {
-							return {
-								type: 'square',
-								attack: 0.002,
-								release: 0.12,
-								volume: 0.18,
-							};
-						}
-						if (instrument === 'organ') {
-							return { type: 'sine', attack: 0.02, release: 0.18, volume: 0.2 };
-						}
-						if (instrument === 'bass') {
-							return {
-								type: 'sawtooth',
-								attack: 0.004,
-								release: 0.22,
-								volume: 0.2,
-							};
+						if (instrument && instrument.voice) {
+							return instrument.voice;
 						}
 
-						return { type: 'sine', attack: 0.002, release: 0.14, volume: 0.2 };
+						return {
+							attack: 0.01,
+							release: 0.18,
+							volume: 0.2,
+							layers: [{ type: 'sine' }],
+						};
 					},
 					playStepNote(note) {
 						if (!this._audio) {
@@ -553,22 +696,31 @@
 						const end = now + durSec;
 						const sustainUntil = Math.max(now + attack, end - release);
 
-						const osc = ctx.createOscillator();
 						const gain = ctx.createGain();
-
-						osc.type = voice.type;
-						osc.frequency.setValueAtTime(freq, now);
-
 						gain.gain.setValueAtTime(0.0001, now);
 						gain.gain.linearRampToValueAtTime(voice.volume, now + attack);
 						gain.gain.setValueAtTime(voice.volume, sustainUntil);
 						gain.gain.exponentialRampToValueAtTime(0.0001, end);
-
-						osc.connect(gain);
 						gain.connect(master);
 
-						osc.start(now);
-						osc.stop(end + 0.03);
+						const layers = voice.layers || [{ type: voice.type || 'sine' }];
+						layers.forEach((layer) => {
+							const osc = ctx.createOscillator();
+							osc.type = layer.type || 'sine';
+							osc.frequency.setValueAtTime(freq * (layer.ratio || 1), now);
+							if (layer.detune) {
+								osc.detune.setValueAtTime(layer.detune, now);
+							}
+
+							const layerGain = ctx.createGain();
+							layerGain.gain.value = layer.gain != null ? layer.gain : 1;
+
+							osc.connect(layerGain);
+							layerGain.connect(gain);
+
+							osc.start(now);
+							osc.stop(end + 0.03);
+						});
 					},
 					tickLoop() {
 						if (!this.phrase.length || !this.isPlaying) {
