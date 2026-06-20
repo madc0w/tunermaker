@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <!-- Dark background -->
+    <rect width="32" height="32" rx="6" fill="#0f172a" />
+    <!-- Tuning fork shape -->
+    <g fill="none" stroke="#22d3ee" stroke-linecap="round" stroke-linejoin="round"
+        stroke-width="2.2">
+        <!-- Handle -->
+        <line x1="16" y1="18" x2="16" y2="28" />
+        <!-- Left tine -->
+        <path d="M11 7 L11 16 Q11 19 14 19" />
+        <!-- Right tine -->
+        <path d="M21 7 L21 16 Q21 19 18 19" />
+        <!-- Top crossbar connecting tines -->
+        <line x1="11" y1="7" x2="21" y2="7" />
+    </g>
+    <!-- Accent dot at base -->
+    <circle cx="16" cy="18.5" r="1.4" fill="#f59e0b" />
+</svg>
