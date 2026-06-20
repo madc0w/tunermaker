@@ -247,7 +247,7 @@
 
 			.phrase-item:hover {
 				border-color: var(--accent);
-				transform: translateY(-1px);
+				background: rgba(34, 211, 238, 0.1);
 			}
 
 			.phrase-item.active {
@@ -438,7 +438,10 @@
 
 				<div class="right-column">
 					<section class="card current-bar">
-						<strong>Current Bar &middot; {{ selectedTimeSignature }}</strong>
+						<strong
+							>Current Bar &middot; {{ currentTimeSignature }} &middot; {{
+							selectedInstrumentLabel }}</strong
+						>
 						<div class="phrase">
 							<span
 								class="chip"
@@ -466,7 +469,8 @@
 									<strong>{{ item.root }} {{ item.variationLabel }}</strong>
 									<span class="meta"
 										>{{ item.timeSignature }} &middot; {{ item.tempo }} BPM
-										&middot; {{ item.noteCount }} notes</span
+										&middot; {{ item.noteCount }} notes &middot; {{
+										item.instrumentLabel || item.instrument }}</span
 									>
 								</span>
 								<span class="phrase-actions">
@@ -747,6 +751,8 @@
 						// Instrument of the phrase currently sounding / queued. Kept
 						// separate from selectedInstrument so each saved phrase plays
 						// with the instrument it was generated with.
+						playingTimeSignature: '4/4',
+						pendingTimeSignature: null,
 						playingInstrument: 'warm-keys',
 						pendingInstrument: null,
 						status: 'Press Go to generate and start playback.',
@@ -821,6 +827,12 @@
 							(pc) => this.midiNoteNames[pc],
 						);
 					},
+					selectedInstrumentLabel() {
+						const ins = this.instruments.find(
+							(i) => i.name === this.selectedInstrument,
+						);
+						return ins ? ins.label : this.selectedInstrument;
+					},
 					phraseChips() {
 						if (!this.phrase.length) {
 							return [{ label: 'No phrase yet', rest: false }];
@@ -843,19 +855,32 @@
 							) || this.timeSignatures[0]
 						);
 					},
+					playingTimeSignatureObj() {
+						return (
+							this.timeSignatures.find(
+								(t) => t.name === this.playingTimeSignature,
+							) || this.selectedTimeSignatureObj
+						);
+					},
+					currentTimeSignature() {
+						return this.playingTimeSignature || this.selectedTimeSignature;
+					},
 					barBeats() {
 						const ts = this.selectedTimeSignatureObj;
 						return ts.numerator * (4 / ts.denominator);
 					},
 					currentDrumPattern() {
-						const preset = this.drumPatterns[this.selectedTimeSignature];
+						const preset = this.drumPatterns[this.currentTimeSignature];
 						if (preset) {
 							return preset;
 						}
 
 						// Fallback: derive a simple kick/snare grid from the bar length.
-						const steps = Math.max(2, Math.round(this.barBeats * 2));
-						const wholeBeats = Math.floor(this.barBeats);
+						const barBeats =
+							this.playingTimeSignatureObj.numerator *
+							(4 / this.playingTimeSignatureObj.denominator);
+						const steps = Math.max(2, Math.round(barBeats * 2));
+						const wholeBeats = Math.floor(barBeats);
 						const kick = [0];
 						const snare = [];
 						for (let b = 1; b < wholeBeats; b += 2) {
@@ -886,12 +911,9 @@
 						}
 					},
 					selectedTimeSignature() {
-						if (this.isPlaying) {
-							this.pendingPhrase = this.buildRandomPhrase();
-							this.status = 'New bar queued for the new time signature.';
-						} else if (this.phrase.length) {
-							this.phrase = this.buildRandomPhrase();
-							this.stepIndex = 0;
+						if (this.phrase.length) {
+							this.status =
+								'Time signature updated for newly generated phrases.';
 						}
 					},
 				},
@@ -911,6 +933,12 @@
 						);
 						if (active) {
 							active.instrument = instrumentName;
+							const instrument = this.instruments.find(
+								(item) => item.name === instrumentName,
+							);
+							active.instrumentLabel = instrument
+								? instrument.label
+								: instrumentName;
 						}
 					},
 					createPhraseEntry(phrase) {
@@ -925,6 +953,7 @@
 							timeSignature: this.selectedTimeSignature,
 							tempo: this.tempo,
 							instrument: this.selectedInstrument,
+							instrumentLabel: this.selectedInstrumentLabel,
 							phrase,
 							noteCount: phrase.filter((n) => !n.rest).length,
 						};
@@ -933,9 +962,11 @@
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
 						this.phrase = entry.phrase;
+						this.playingTimeSignature = entry.timeSignature;
 						this.playingInstrument = entry.instrument;
 						this.pendingPhrase = null;
 						this.pendingPhraseId = null;
+						this.pendingTimeSignature = null;
 						this.pendingInstrument = null;
 						this.activePhraseId = entry.id;
 						this.stepIndex = 0;
@@ -975,6 +1006,7 @@
 						}
 
 						this.phrase = fallback.phrase;
+						this.playingTimeSignature = fallback.timeSignature;
 						this.playingInstrument = fallback.instrument;
 						this.activePhraseId = fallback.id;
 						this.stepIndex = 0;
@@ -1075,7 +1107,18 @@
 							remaining -= beats;
 						}
 
-						return phrase;
+						// Consolidate consecutive rests into a single rest.
+						const merged = [];
+						for (const step of phrase) {
+							const prev = merged[merged.length - 1];
+							if (step.rest && prev && prev.rest) {
+								prev.beats += step.beats;
+							} else {
+								merged.push({ ...step });
+							}
+						}
+
+						return merged;
 					},
 					durationLabel(beats) {
 						const map = {
@@ -1215,6 +1258,10 @@
 								if (this.pendingPhraseId !== null) {
 									this.activePhraseId = this.pendingPhraseId;
 									this.pendingPhraseId = null;
+								}
+								if (this.pendingTimeSignature !== null) {
+									this.playingTimeSignature = this.pendingTimeSignature;
+									this.pendingTimeSignature = null;
 								}
 								if (this.pendingInstrument !== null) {
 									this.playingInstrument = this.pendingInstrument;
@@ -1382,14 +1429,17 @@
 						if (this.phrase.length && this.isPlaying) {
 							this.pendingPhrase = newPhrase;
 							this.pendingPhraseId = entry.id;
+							this.pendingTimeSignature = entry.timeSignature;
 							this.pendingInstrument = entry.instrument;
 							this.status =
 								'New chord phrase queued; it will switch on the next loop.';
 						} else {
 							this.phrase = newPhrase;
+							this.playingTimeSignature = entry.timeSignature;
 							this.playingInstrument = entry.instrument;
 							this.pendingPhrase = null;
 							this.pendingPhraseId = null;
+							this.pendingTimeSignature = null;
 							this.pendingInstrument = null;
 							this.activePhraseId = entry.id;
 							this.stepIndex = 0;
@@ -1407,6 +1457,7 @@
 
 						if (!this.phrase.length) {
 							this.phrase = this.buildRandomPhrase();
+							this.playingTimeSignature = this.selectedTimeSignature;
 							this.playingInstrument = this.selectedInstrument;
 							this.stepIndex = 0;
 						}
@@ -1451,7 +1502,7 @@
 						const loopsToExport = 8;
 						const microPerQuarter = Math.floor(60000000 / this.tempo);
 						const instrument = this.getActiveInstrument();
-						const ts = this.selectedTimeSignatureObj;
+						const ts = this.playingTimeSignatureObj;
 
 						events.push({ tick: 0, type: 'tempo', mpq: microPerQuarter });
 						events.push({
