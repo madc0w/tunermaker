@@ -181,11 +181,87 @@
 				transform: translateY(-2px) scale(1.05);
 			}
 
+			.chip.rest {
+				border-style: dashed;
+				border-color: rgba(148, 163, 184, 0.5);
+				background: rgba(148, 163, 184, 0.12);
+				color: var(--muted);
+				font-style: italic;
+			}
+
 			.pending {
 				color: var(--accent-2);
 				font-size: 0.88rem;
 				margin-top: 10px;
 				min-height: 1.2rem;
+			}
+
+			.right-column {
+				display: grid;
+				gap: 16px;
+				align-content: start;
+			}
+
+			.current-bar {
+				height: 220px;
+				overflow-y: auto;
+			}
+
+			.phrase-list {
+				list-style: none;
+				margin: 12px 0 0;
+				padding: 0;
+				display: grid;
+				gap: 8px;
+				max-height: 320px;
+				overflow-y: auto;
+			}
+
+			.phrase-item {
+				cursor: pointer;
+				border: 1px solid rgba(148, 163, 184, 0.25);
+				border-radius: 10px;
+				padding: 10px 12px;
+				background: rgba(15, 23, 42, 0.5);
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 10px;
+				transition:
+					border-color 120ms ease,
+					transform 120ms ease,
+					background 120ms ease;
+			}
+
+			.phrase-item:hover {
+				border-color: var(--accent);
+				transform: translateY(-1px);
+			}
+
+			.phrase-item.active {
+				border-color: var(--accent);
+				background: rgba(34, 211, 238, 0.16);
+			}
+
+			.phrase-info {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+
+			.phrase-item .meta {
+				font-size: 0.78rem;
+				color: var(--muted);
+			}
+
+			.phrase-item.active .play-icon {
+				color: var(--accent);
+			}
+
+			.empty-list {
+				color: var(--muted);
+				font-size: 0.9rem;
+				margin-top: 10px;
 			}
 
 			@media (max-width: 860px) {
@@ -245,6 +321,19 @@
 					</div>
 
 					<div>
+						<label class="label" for="timesig">Time Signature</label>
+						<select id="timesig" v-model="selectedTimeSignature">
+							<option
+								v-for="ts in timeSignatures"
+								:key="ts.name"
+								:value="ts.name"
+							>
+								{{ ts.name }}
+							</option>
+						</select>
+					</div>
+
+					<div>
 						<label class="label" for="instrument">Instrument</label>
 						<select id="instrument" v-model="selectedInstrument">
 							<option
@@ -257,37 +346,80 @@
 						</select>
 					</div>
 
+					<div>
+						<label class="label" for="notecount">Number of Notes</label>
+						<select id="notecount" v-model="selectedNoteCount">
+							<option
+								v-for="option in noteCountOptions"
+								:key="option.value"
+								:value="option.value"
+							>
+								{{ option.label }}
+							</option>
+						</select>
+					</div>
+
 					<div class="btn-row">
 						<button class="go" @click="handleGo">Go</button>
 						<button class="secondary" @click="exportMidi">Export MIDI</button>
 						<button class="secondary" @click="togglePlay">
 							{{ isPlaying ? 'Pause' : 'Play' }}
 						</button>
+						<button class="secondary" @click="toggleDrums">
+							{{ drumsEnabled ? 'Drums: On' : 'Drums: Off' }}
+						</button>
 					</div>
 
 					<p class="status">{{ status }}</p>
 				</section>
 
-				<section class="card">
-					<strong>Current Phrase (4 notes)</strong>
-					<div class="phrase">
-						<span
-							class="chip"
-							:class="{ playing: isPlaying && playingIndex === idx }"
-							v-for="(note, idx) in phraseLabels"
-							:key="idx"
-							>{{ note }}</span
-						>
-					</div>
+				<div class="right-column">
+					<section class="card current-bar">
+						<strong>Current Bar &middot; {{ selectedTimeSignature }}</strong>
+						<div class="phrase">
+							<span
+								class="chip"
+								:class="{ playing: isPlaying && playingIndex === idx, rest: chip.rest }"
+								v-for="(chip, idx) in phraseChips"
+								:key="idx"
+								>{{ chip.label }}</span
+							>
+						</div>
 
-					<div class="pending">{{ pendingMessage }}</div>
+						<div class="pending">{{ pendingMessage }}</div>
 
-					<p class="subtitle" style="margin-top: 14px">
-						Selected chord:
-						<strong>{{ selectedRoot }} {{ selectedVariation }}</strong><br />
-						Chord tones: {{ chordToneLabels.join(', ') || 'N/A' }}
-					</p>
-				</section>
+						<p class="subtitle" style="margin-top: 14px">
+							Selected chord:
+							<strong>{{ selectedRoot }} {{ selectedVariation }}</strong><br />
+							Chord tones: {{ chordToneLabels.join(', ') || 'N/A' }}
+						</p>
+					</section>
+
+					<section class="card">
+						<strong>Generated Phrases</strong>
+						<ul class="phrase-list" v-if="savedPhrases.length">
+							<li
+								class="phrase-item"
+								:class="{ active: activePhraseId === item.id }"
+								v-for="item in savedPhrases"
+								:key="item.id"
+								@click="selectPhrase(item)"
+							>
+								<span class="phrase-info">
+									<strong>{{ item.root }} {{ item.variationLabel }}</strong>
+									<span class="meta"
+										>{{ item.timeSignature }} &middot; {{ item.tempo }} BPM
+										&middot; {{ item.noteCount }} notes</span
+									>
+								</span>
+								<span class="play-icon">&#9654;</span>
+							</li>
+						</ul>
+						<p class="empty-list" v-else>
+							No phrases yet. Press Go to generate one.
+						</p>
+					</section>
+				</div>
 			</main>
 		</div>
 
@@ -516,14 +648,58 @@
 						selectedRoot: 'C',
 						selectedVariation: 'minor',
 						selectedInstrument: 'warm-keys',
+						timeSignatures: [
+							{ name: '4/4', numerator: 4, denominator: 4 },
+							{ name: '3/4', numerator: 3, denominator: 4 },
+							{ name: '2/4', numerator: 2, denominator: 4 },
+							{ name: '6/8', numerator: 6, denominator: 8 },
+							{ name: '5/4', numerator: 5, denominator: 4 },
+							{ name: '7/8', numerator: 7, denominator: 8 },
+							{ name: '12/8', numerator: 12, denominator: 8 },
+						],
+						selectedTimeSignature: '4/4',
 						tempo: 110,
+						selectedNoteCount: 'random',
+						noteCountOptions: [
+							{ value: 'random', label: 'Random' },
+							{ value: 2, label: '2 notes' },
+							{ value: 3, label: '3 notes' },
+							{ value: 4, label: '4 notes' },
+							{ value: 5, label: '5 notes' },
+							{ value: 6, label: '6 notes' },
+							{ value: 7, label: '7 notes' },
+							{ value: 8, label: '8 notes' },
+						],
 						phrase: [],
 						pendingPhrase: null,
+						savedPhrases: [],
+						activePhraseId: null,
+						pendingPhraseId: null,
+						phraseCounter: 0,
+						// Instrument of the phrase currently sounding / queued. Kept
+						// separate from selectedInstrument so each saved phrase plays
+						// with the instrument it was generated with.
+						playingInstrument: 'warm-keys',
+						pendingInstrument: null,
 						status: 'Press Go to generate and start playback.',
 						isPlaying: false,
 						stepIndex: 0,
 						playingIndex: -1,
 						loopTimerId: null,
+						drumsEnabled: true,
+						drumStep: 0,
+						drumTimerId: null,
+						// Constant drum patterns keyed by time signature. Indices are
+						// eighth-note steps within a bar (steps === barBeats * 2).
+						drumPatterns: {
+							'4/4': { steps: 8, kick: [0, 4], snare: [2, 6] },
+							'3/4': { steps: 6, kick: [0], snare: [2, 4] },
+							'2/4': { steps: 4, kick: [0], snare: [2] },
+							'6/8': { steps: 6, kick: [0, 3], snare: [3] },
+							'5/4': { steps: 10, kick: [0, 6], snare: [2, 8] },
+							'7/8': { steps: 7, kick: [0, 4], snare: [2] },
+							'12/8': { steps: 12, kick: [0, 6], snare: [3, 9] },
+						},
 						midiNoteNames: [
 							'C',
 							'C#',
@@ -576,15 +752,50 @@
 							(pc) => this.midiNoteNames[pc],
 						);
 					},
-					phraseLabels() {
-						return this.phrase.length
-							? this.phrase.map(
-									(n) =>
-										`${this.midiToLabel(n.midi)} · ${this.durationLabel(
-											n.beats,
-										)}`,
-								)
-							: ['No phrase yet'];
+					phraseChips() {
+						if (!this.phrase.length) {
+							return [{ label: 'No phrase yet', rest: false }];
+						}
+
+						return this.phrase.map((n) => {
+							const dur = this.durationLabel(n.beats);
+							return {
+								rest: !!n.rest,
+								label: n.rest
+									? `Rest \u00b7 ${dur}`
+									: `${this.midiToLabel(n.midi)} \u00b7 ${dur}`,
+							};
+						});
+					},
+					selectedTimeSignatureObj() {
+						return (
+							this.timeSignatures.find(
+								(t) => t.name === this.selectedTimeSignature,
+							) || this.timeSignatures[0]
+						);
+					},
+					barBeats() {
+						const ts = this.selectedTimeSignatureObj;
+						return ts.numerator * (4 / ts.denominator);
+					},
+					currentDrumPattern() {
+						const preset = this.drumPatterns[this.selectedTimeSignature];
+						if (preset) {
+							return preset;
+						}
+
+						// Fallback: derive a simple kick/snare grid from the bar length.
+						const steps = Math.max(2, Math.round(this.barBeats * 2));
+						const wholeBeats = Math.floor(this.barBeats);
+						const kick = [0];
+						const snare = [];
+						for (let b = 1; b < wholeBeats; b += 2) {
+							snare.push(b * 2);
+						}
+						if (wholeBeats >= 4) {
+							kick.push(Math.floor(wholeBeats / 2) * 2);
+						}
+						return { steps, kick, snare };
 					},
 					pendingMessage() {
 						if (!this.pendingPhrase) {
@@ -599,9 +810,19 @@
 						// The recursive scheduler reads the tempo fresh on every step,
 						// so a tempo change is picked up automatically on the next note.
 					},
-					selectedInstrument() {
+					selectedInstrument(newInstrument) {
 						if (this.isPlaying) {
-							this.status = 'Instrument updated.';
+							this.applyInstrumentToActivePhrase(newInstrument);
+							this.status = 'Instrument updated for current phrase.';
+						}
+					},
+					selectedTimeSignature() {
+						if (this.isPlaying) {
+							this.pendingPhrase = this.buildRandomPhrase();
+							this.status = 'New bar queued for the new time signature.';
+						} else if (this.phrase.length) {
+							this.phrase = this.buildRandomPhrase();
+							this.stepIndex = 0;
 						}
 					},
 				},
@@ -609,19 +830,142 @@
 					randomItem(list) {
 						return list[Math.floor(Math.random() * list.length)];
 					},
-					buildRandomPhrase() {
-						const octaves = [2, 3, 4, 5];
-						// Durations in quarter-note beats: 1/16, 1/8, 1/4, 1/2, whole.
-						const durations = [0.25, 0.5, 1, 2, 4];
-						const phrase = [];
+					applyInstrumentToActivePhrase(instrumentName) {
+						this.playingInstrument = instrumentName;
 
-						for (let i = 0; i < 4; i += 1) {
-							const pitchClass = this.randomItem(this.chordToneMidiClasses);
-							const octave = this.randomItem(octaves);
-							phrase.push({
-								midi: octave * 12 + pitchClass,
-								beats: this.randomItem(durations),
-							});
+						if (this.activePhraseId === null) {
+							return;
+						}
+
+						const active = this.savedPhrases.find(
+							(item) => item.id === this.activePhraseId,
+						);
+						if (active) {
+							active.instrument = instrumentName;
+						}
+					},
+					createPhraseEntry(phrase) {
+						this.phraseCounter += 1;
+						return {
+							id: this.phraseCounter,
+							root: this.selectedRoot,
+							variation: this.selectedVariation,
+							variationLabel: this.selectedVariationObj
+								? this.selectedVariationObj.label
+								: this.selectedVariation,
+							timeSignature: this.selectedTimeSignature,
+							tempo: this.tempo,
+							instrument: this.selectedInstrument,
+							phrase,
+							noteCount: phrase.filter((n) => !n.rest).length,
+						};
+					},
+					async selectPhrase(entry) {
+						this.ensureAudioContext();
+						await this._audio.ctx.resume();
+						this.phrase = entry.phrase;
+						this.playingInstrument = entry.instrument;
+						this.pendingPhrase = null;
+						this.pendingPhraseId = null;
+						this.pendingInstrument = null;
+						this.activePhraseId = entry.id;
+						this.stepIndex = 0;
+						this.playingIndex = -1;
+						this.isPlaying = true;
+						this.startLoopTimer();
+						this.status = `Playing saved phrase: ${entry.root} ${entry.variationLabel} \u00b7 ${entry.timeSignature}.`;
+					},
+					buildRandomPhrase() {
+						const target = this.resolveNoteCount();
+						return target === null
+							? this.buildVariablePhrase()
+							: this.buildCountedPhrase(target);
+					},
+					resolveNoteCount() {
+						return this.selectedNoteCount === 'random'
+							? null
+							: Number(this.selectedNoteCount);
+					},
+					randomChordNote() {
+						const octaves = [2, 3, 4, 5];
+						const pitchClass = this.randomItem(this.chordToneMidiClasses);
+						const octave = this.randomItem(octaves);
+						return octave * 12 + pitchClass;
+					},
+					buildCountedPhrase(count) {
+						// Distribute exactly `count` notes across the bar using
+						// sixteenth-note units (0.25 beat), upgrading random notes to
+						// longer durations until the bar is filled.
+						const unit = 0.25;
+						const barUnits = Math.max(count, Math.round(this.barBeats / unit));
+						const durUnits = new Array(count).fill(1);
+						let remaining = barUnits - count;
+						// Increment to the next power-of-two level equals current value.
+						const upgradeFor = (u) => (u < 8 ? u : 0);
+
+						let guard = 0;
+						while (remaining > 0 && guard < 1000) {
+							guard += 1;
+							const candidates = [];
+							for (let i = 0; i < durUnits.length; i += 1) {
+								const inc = upgradeFor(durUnits[i]);
+								if (inc > 0 && inc <= remaining) {
+									candidates.push(i);
+								}
+							}
+							if (!candidates.length) {
+								break;
+							}
+							const idx = this.randomItem(candidates);
+							const inc = upgradeFor(durUnits[idx]);
+							durUnits[idx] += inc;
+							remaining -= inc;
+						}
+
+						// Dump any leftover onto a random note so the bar fills exactly.
+						if (remaining > 0) {
+							durUnits[Math.floor(Math.random() * durUnits.length)] +=
+								remaining;
+						}
+
+						// Shuffle so longer notes aren't always at the front.
+						for (let i = durUnits.length - 1; i > 0; i -= 1) {
+							const j = Math.floor(Math.random() * (i + 1));
+							[durUnits[i], durUnits[j]] = [durUnits[j], durUnits[i]];
+						}
+
+						return durUnits.map((u) => ({
+							midi: this.randomChordNote(),
+							beats: u * unit,
+							rest: false,
+						}));
+					},
+					buildVariablePhrase() {
+						const octaves = [2, 3, 4, 5];
+						// Durations in quarter-note beats: 1/16, 1/8, 1/4, 1/2.
+						const durations = [0.25, 0.5, 1, 2];
+						const phrase = [];
+						let remaining = this.barBeats;
+
+						while (remaining >= 0.25) {
+							const options = durations.filter((d) => d <= remaining);
+							const beats = this.randomItem(options);
+							// Sprinkle in rests, but never let a bar start with one.
+							const isRest = phrase.length > 0 && Math.random() < 0.3;
+
+							if (isRest) {
+								phrase.push({ rest: true, beats });
+							} else {
+								const pitchClass = this.randomItem(this.chordToneMidiClasses);
+								const octave = this.randomItem(octaves);
+								phrase.push({
+									midi: octave * 12 + pitchClass,
+									beats,
+									rest: false,
+								});
+							}
+
+							remaining -= beats;
 						}
 
 						return phrase;
@@ -632,7 +976,6 @@
 							0.5: '1/8',
 							1: '1/4',
 							2: '1/2',
-							4: 'whole',
 						};
 						return map[beats] || `${beats} beat`;
 					},
@@ -651,6 +994,13 @@
 							) || this.instruments[0]
 						);
 					},
+					getActiveInstrument() {
+						return (
+							this.instruments.find(
+								(ins) => ins.name === this.playingInstrument,
+							) || this.getSelectedInstrument()
+						);
+					},
 					ensureAudioContext() {
 						// IMPORTANT: keep audio nodes OUT of Vue's reactive data.
 						// Wrapping AudioContext/AudioNode in a reactive Proxy breaks
@@ -662,11 +1012,24 @@
 							const master = ctx.createGain();
 							master.gain.value = 0.6;
 							master.connect(ctx.destination);
-							this._audio = { ctx, master };
+
+							// Pre-render a short white-noise buffer reused by the
+							// snare and hi-hat drum voices.
+							const noiseBuffer = ctx.createBuffer(
+								1,
+								Math.floor(ctx.sampleRate * 0.5),
+								ctx.sampleRate,
+							);
+							const noiseData = noiseBuffer.getChannelData(0);
+							for (let i = 0; i < noiseData.length; i += 1) {
+								noiseData[i] = Math.random() * 2 - 1;
+							}
+
+							this._audio = { ctx, master, noiseBuffer };
 						}
 					},
 					getInstrumentVoice() {
-						const instrument = this.getSelectedInstrument();
+						const instrument = this.getActiveInstrument();
 
 						if (instrument && instrument.voice) {
 							return instrument.voice;
@@ -680,7 +1043,7 @@
 						};
 					},
 					playStepNote(note) {
-						if (!this._audio) {
+						if (!this._audio || note.rest) {
 							return;
 						}
 
@@ -729,7 +1092,7 @@
 
 						const note = this.phrase[this.stepIndex];
 						this.playStepNote(note);
-						this.playingIndex = this.stepIndex;
+						this.playingIndex = note.rest ? -1 : this.stepIndex;
 
 						const stepMs = Math.max(60, note.beats * this.getBeatMs());
 
@@ -740,12 +1103,20 @@
 							if (this.pendingPhrase) {
 								this.phrase = this.pendingPhrase;
 								this.pendingPhrase = null;
+								if (this.pendingPhraseId !== null) {
+									this.activePhraseId = this.pendingPhraseId;
+									this.pendingPhraseId = null;
+								}
+								if (this.pendingInstrument !== null) {
+									this.playingInstrument = this.pendingInstrument;
+									this.pendingInstrument = null;
+								}
 								this.status = 'Queued phrase is now live.';
 							}
 						}
 
 						// Each note self-schedules the next step using its own duration,
-						// so the loop can mix 1/16 notes through whole notes.
+						// so the loop can mix 1/16 notes through 1/2 notes (and rests).
 						this.loopTimerId = window.setTimeout(() => {
 							this.tickLoop();
 						}, stepMs);
@@ -753,15 +1124,138 @@
 					getBeatMs() {
 						return Math.max(80, Math.floor(60000 / this.tempo));
 					},
+					playKick() {
+						if (!this._audio) {
+							return;
+						}
+						const { ctx, master } = this._audio;
+						const now = ctx.currentTime;
+						const osc = ctx.createOscillator();
+						const gain = ctx.createGain();
+						osc.frequency.setValueAtTime(150, now);
+						osc.frequency.exponentialRampToValueAtTime(48, now + 0.12);
+						gain.gain.setValueAtTime(0.9, now);
+						gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+						osc.connect(gain);
+						gain.connect(master);
+						osc.start(now);
+						osc.stop(now + 0.2);
+					},
+					playSnare() {
+						if (!this._audio) {
+							return;
+						}
+						const { ctx, master, noiseBuffer } = this._audio;
+						const now = ctx.currentTime;
+
+						const noise = ctx.createBufferSource();
+						noise.buffer = noiseBuffer;
+						const noiseFilter = ctx.createBiquadFilter();
+						noiseFilter.type = 'highpass';
+						noiseFilter.frequency.value = 1200;
+						const noiseGain = ctx.createGain();
+						noiseGain.gain.setValueAtTime(0.55, now);
+						noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+						noise.connect(noiseFilter);
+						noiseFilter.connect(noiseGain);
+						noiseGain.connect(master);
+
+						const osc = ctx.createOscillator();
+						osc.type = 'triangle';
+						osc.frequency.value = 180;
+						const oscGain = ctx.createGain();
+						oscGain.gain.setValueAtTime(0.3, now);
+						oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+						osc.connect(oscGain);
+						oscGain.connect(master);
+
+						noise.start(now);
+						noise.stop(now + 0.2);
+						osc.start(now);
+						osc.stop(now + 0.12);
+					},
+					playHat() {
+						if (!this._audio) {
+							return;
+						}
+						const { ctx, master, noiseBuffer } = this._audio;
+						const now = ctx.currentTime;
+						const noise = ctx.createBufferSource();
+						noise.buffer = noiseBuffer;
+						const filter = ctx.createBiquadFilter();
+						filter.type = 'highpass';
+						filter.frequency.value = 7000;
+						const gain = ctx.createGain();
+						gain.gain.setValueAtTime(0.22, now);
+						gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+						noise.connect(filter);
+						filter.connect(gain);
+						gain.connect(master);
+						noise.start(now);
+						noise.stop(now + 0.06);
+					},
+					startDrumLoop() {
+						this.stopDrumLoop();
+						if (!this.drumsEnabled) {
+							return;
+						}
+						this.drumStep = 0;
+						this.drumTick();
+					},
+					stopDrumLoop() {
+						if (this.drumTimerId !== null) {
+							window.clearTimeout(this.drumTimerId);
+							this.drumTimerId = null;
+						}
+					},
+					drumTick() {
+						if (!this.isPlaying || !this.drumsEnabled || !this._audio) {
+							return;
+						}
+
+						const pattern = this.currentDrumPattern;
+						const step = this.drumStep % pattern.steps;
+
+						// Steady hi-hat on every eighth, kick and snare per pattern.
+						this.playHat();
+						if (pattern.kick.includes(step)) {
+							this.playKick();
+						}
+						if (pattern.snare.includes(step)) {
+							this.playSnare();
+						}
+
+						this.drumStep = (this.drumStep + 1) % pattern.steps;
+
+						// One eighth note per drum step, independent of the melody phrase.
+						const stepMs = Math.max(40, Math.round(this.getBeatMs() / 2));
+						this.drumTimerId = window.setTimeout(() => {
+							this.drumTick();
+						}, stepMs);
+					},
+					toggleDrums() {
+						this.drumsEnabled = !this.drumsEnabled;
+						if (this.drumsEnabled) {
+							if (this.isPlaying) {
+								this.startDrumLoop();
+							}
+							this.status = 'Drums on.';
+						} else {
+							this.stopDrumLoop();
+							this.status = 'Drums off.';
+						}
+					},
 					startLoopTimer() {
 						this.stopLoopTimer();
 						this.tickLoop();
+						this.startDrumLoop();
 					},
 					stopLoopTimer() {
 						if (this.loopTimerId !== null) {
 							window.clearTimeout(this.loopTimerId);
 							this.loopTimerId = null;
 						}
+						this.stopDrumLoop();
 						this.playingIndex = -1;
 					},
 					restartLoopTimer() {
@@ -773,14 +1267,22 @@
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
 						const newPhrase = this.buildRandomPhrase();
+						const entry = this.createPhraseEntry(newPhrase);
+						this.savedPhrases.push(entry);
 
 						if (this.phrase.length && this.isPlaying) {
 							this.pendingPhrase = newPhrase;
+							this.pendingPhraseId = entry.id;
+							this.pendingInstrument = entry.instrument;
 							this.status =
 								'New chord phrase queued; it will switch on the next loop.';
 						} else {
 							this.phrase = newPhrase;
+							this.playingInstrument = entry.instrument;
 							this.pendingPhrase = null;
+							this.pendingPhraseId = null;
+							this.pendingInstrument = null;
+							this.activePhraseId = entry.id;
 							this.stepIndex = 0;
 							this.status = 'New phrase generated and playing.';
 						}
@@ -796,6 +1298,7 @@
 
 						if (!this.phrase.length) {
 							this.phrase = this.buildRandomPhrase();
+							this.playingInstrument = this.selectedInstrument;
 							this.stepIndex = 0;
 						}
 
@@ -838,9 +1341,16 @@
 						const events = [];
 						const loopsToExport = 8;
 						const microPerQuarter = Math.floor(60000000 / this.tempo);
-						const instrument = this.getSelectedInstrument();
+						const instrument = this.getActiveInstrument();
+						const ts = this.selectedTimeSignatureObj;
 
 						events.push({ tick: 0, type: 'tempo', mpq: microPerQuarter });
+						events.push({
+							tick: 0,
+							type: 'timesig',
+							numerator: ts.numerator,
+							denominator: ts.denominator,
+						});
 						events.push({
 							tick: 0,
 							type: 'program',
@@ -856,24 +1366,33 @@
 								const start = cursor;
 								const end = start + durTicks;
 
-								events.push({
-									tick: start,
-									type: 'on',
-									note: step.midi,
-									velocity: 96,
-								});
-								events.push({
-									tick: end,
-									type: 'off',
-									note: step.midi,
-									velocity: 0,
-								});
+								if (!step.rest) {
+									events.push({
+										tick: start,
+										type: 'on',
+										note: step.midi,
+										velocity: 96,
+									});
+									events.push({
+										tick: end,
+										type: 'off',
+										note: step.midi,
+										velocity: 0,
+									});
+								}
 
 								cursor = end;
 							}
 						}
 
-						const typeOrder = { tempo: 0, program: 1, off: 2, on: 3, end: 4 };
+						const typeOrder = {
+							tempo: 0,
+							timesig: 1,
+							program: 2,
+							off: 3,
+							on: 4,
+							end: 5,
+						};
 						const endTick = cursor;
 						events.push({ tick: endTick, type: 'end' });
 
@@ -898,6 +1417,16 @@
 									(event.mpq >> 16) & 0xff,
 									(event.mpq >> 8) & 0xff,
 									event.mpq & 0xff,
+								);
+							} else if (event.type === 'timesig') {
+								trackData.push(
+									0xff,
+									0x58,
+									0x04,
+									event.numerator,
+									Math.round(Math.log2(event.denominator)),
+									24,
+									8,
 								);
 							} else if (event.type === 'program') {
 								trackData.push(0xc0, event.program & 0x7f);
