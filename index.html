@@ -97,6 +97,17 @@
 				gap: 12px;
 			}
 
+			.control-row {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 12px;
+			}
+
+			.selected-chord-summary {
+				margin: -4px 0 2px;
+				font-size: 0.95rem;
+			}
+
 			select,
 			input[type='number'],
 			input[type='range'],
@@ -258,6 +269,38 @@
 				color: var(--accent);
 			}
 
+			.phrase-actions {
+				display: inline-flex;
+				align-items: center;
+				gap: 10px;
+			}
+
+			.phrase-delete {
+				width: 22px;
+				height: 22px;
+				min-width: 22px;
+				padding: 0;
+				border-radius: 999px;
+				border: 1px solid rgba(248, 113, 113, 0.7);
+				background: rgba(127, 29, 29, 0.22);
+				color: #f87171;
+				font-size: 0.86rem;
+				line-height: 1;
+				font-weight: 700;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				cursor: pointer;
+				flex: 0 0 auto;
+			}
+
+			.phrase-delete:hover {
+				border-color: #ef4444;
+				background: rgba(239, 68, 68, 0.2);
+				color: #fecaca;
+				transform: none;
+			}
+
 			.empty-list {
 				color: var(--muted);
 				font-size: 0.9rem;
@@ -266,6 +309,10 @@
 
 			@media (max-width: 860px) {
 				.content {
+					grid-template-columns: 1fr;
+				}
+
+				.control-row {
 					grid-template-columns: 1fr;
 				}
 
@@ -286,27 +333,40 @@
 
 			<main class="content">
 				<section class="card control-grid">
-					<div>
-						<label class="label" for="root">Chord Root</label>
-						<select id="root" v-model="selectedRoot">
-							<option v-for="root in roots" :key="root" :value="root">
-								{{ root }}
-							</option>
-						</select>
+					<div class="control-row">
+						<div>
+							<label class="label" for="root">Chord Root</label>
+							<select
+								id="root"
+								v-model="selectedRoot"
+								@focus="isRootSelectFocused = true"
+								@blur="isRootSelectFocused = false"
+							>
+								<option v-for="root in roots" :key="root" :value="root">
+									{{ root }}
+								</option>
+							</select>
+						</div>
+
+						<div>
+							<label class="label" for="variation">Variation</label>
+							<select id="variation" v-model="selectedVariation">
+								<option
+									v-for="variation in variationOptions"
+									:key="variation.name"
+									:value="variation.name"
+								>
+									{{ variation.label }}
+								</option>
+							</select>
+						</div>
 					</div>
 
-					<div>
-						<label class="label" for="variation">Variation</label>
-						<select id="variation" v-model="selectedVariation">
-							<option
-								v-for="variation in variationOptions"
-								:key="variation.name"
-								:value="variation.name"
-							>
-								{{ variation.label }}
-							</option>
-						</select>
-					</div>
+					<p class="subtitle selected-chord-summary">
+						Selected chord:
+						<strong>{{ selectedRoot }} {{ selectedVariation }}</strong><br />
+						Chord tones: {{ chordToneLabels.join(', ') || 'N/A' }}
+					</p>
 
 					<div>
 						<label class="label" for="tempo">Tempo (BPM): {{ tempo }}</label>
@@ -320,17 +380,32 @@
 						/>
 					</div>
 
-					<div>
-						<label class="label" for="timesig">Time Signature</label>
-						<select id="timesig" v-model="selectedTimeSignature">
-							<option
-								v-for="ts in timeSignatures"
-								:key="ts.name"
-								:value="ts.name"
-							>
-								{{ ts.name }}
-							</option>
-						</select>
+					<div class="control-row">
+						<div>
+							<label class="label" for="timesig">Time Signature</label>
+							<select id="timesig" v-model="selectedTimeSignature">
+								<option
+									v-for="ts in timeSignatures"
+									:key="ts.name"
+									:value="ts.name"
+								>
+									{{ ts.name }}
+								</option>
+							</select>
+						</div>
+
+						<div>
+							<label class="label" for="notecount">Number of Notes</label>
+							<select id="notecount" v-model="selectedNoteCount">
+								<option
+									v-for="option in noteCountOptions"
+									:key="option.value"
+									:value="option.value"
+								>
+									{{ option.label }}
+								</option>
+							</select>
+						</div>
 					</div>
 
 					<div>
@@ -342,19 +417,6 @@
 								:value="instrument.name"
 							>
 								{{ instrument.label }}
-							</option>
-						</select>
-					</div>
-
-					<div>
-						<label class="label" for="notecount">Number of Notes</label>
-						<select id="notecount" v-model="selectedNoteCount">
-							<option
-								v-for="option in noteCountOptions"
-								:key="option.value"
-								:value="option.value"
-							>
-								{{ option.label }}
 							</option>
 						</select>
 					</div>
@@ -387,12 +449,6 @@
 						</div>
 
 						<div class="pending">{{ pendingMessage }}</div>
-
-						<p class="subtitle" style="margin-top: 14px">
-							Selected chord:
-							<strong>{{ selectedRoot }} {{ selectedVariation }}</strong><br />
-							Chord tones: {{ chordToneLabels.join(', ') || 'N/A' }}
-						</p>
 					</section>
 
 					<section class="card">
@@ -412,7 +468,18 @@
 										&middot; {{ item.noteCount }} notes</span
 									>
 								</span>
-								<span class="play-icon">&#9654;</span>
+								<span class="phrase-actions">
+									<span class="play-icon">&#9654;</span>
+									<button
+										type="button"
+										class="phrase-delete"
+										@click.stop="deletePhrase(item)"
+										aria-label="Delete phrase"
+										title="Delete phrase"
+									>
+										X
+									</button>
+								</span>
 							</li>
 						</ul>
 						<p class="empty-list" v-else>
@@ -683,6 +750,7 @@
 						pendingInstrument: null,
 						status: 'Press Go to generate and start playback.',
 						isPlaying: false,
+						isRootSelectFocused: false,
 						stepIndex: 0,
 						playingIndex: -1,
 						loopTimerId: null,
@@ -874,6 +942,44 @@
 						this.isPlaying = true;
 						this.startLoopTimer();
 						this.status = `Playing saved phrase: ${entry.root} ${entry.variationLabel} \u00b7 ${entry.timeSignature}.`;
+					},
+					deletePhrase(entry) {
+						const deletingActive = this.activePhraseId === entry.id;
+						const deletingPending = this.pendingPhraseId === entry.id;
+
+						this.savedPhrases = this.savedPhrases.filter(
+							(item) => item.id !== entry.id,
+						);
+
+						if (deletingPending) {
+							this.pendingPhrase = null;
+							this.pendingPhraseId = null;
+							this.pendingInstrument = null;
+						}
+
+						if (!deletingActive) {
+							this.status = 'Phrase deleted.';
+							return;
+						}
+
+						const fallback =
+							this.savedPhrases[this.savedPhrases.length - 1] || null;
+						if (!fallback) {
+							this.activePhraseId = null;
+							this.phrase = [];
+							this.isPlaying = false;
+							this.stopLoopTimer();
+							this.status = 'Phrase deleted.';
+							return;
+						}
+
+						this.phrase = fallback.phrase;
+						this.playingInstrument = fallback.instrument;
+						this.activePhraseId = fallback.id;
+						this.stepIndex = 0;
+						this.playingIndex = -1;
+						this.restartLoopTimer();
+						this.status = `Phrase deleted. Switched to: ${fallback.root} ${fallback.variationLabel}.`;
 					},
 					buildRandomPhrase() {
 						const target = this.resolveNoteCount();
@@ -1092,7 +1198,9 @@
 
 						const note = this.phrase[this.stepIndex];
 						this.playStepNote(note);
-						this.playingIndex = note.rest ? -1 : this.stepIndex;
+						if (!this.isRootSelectFocused) {
+							this.playingIndex = note.rest ? -1 : this.stepIndex;
+						}
 
 						const stepMs = Math.max(60, note.beats * this.getBeatMs());
 
