@@ -487,7 +487,9 @@
 
 					<div class="btn-row">
 						<button class="go" @click="handleGo">Go</button>
-						<button class="secondary" @click="exportMidi">Export MIDI</button>
+						<button class="secondary" @click="toggleMidiRecording">
+							{{ isMidiRecording ? 'Stop recording' : 'Record MIDI' }}
+						</button>
 						<button class="secondary" @click="togglePlay">
 							{{ isPlaying ? 'Pause' : 'Play' }}
 						</button>
@@ -840,10 +842,12 @@
 						pendingRhythmInstrument: null,
 						status: 'Press Go to generate and start playback.',
 						isPlaying: false,
+						isMidiRecording: false,
 						isRootSelectFocused: false,
 						stepIndex: 0,
 						playingIndex: -1,
 						loopTimerId: null,
+						midiRecording: null,
 						drumsEnabled: true,
 						drumStep: 0,
 						drumTimerId: null,
@@ -1127,28 +1131,43 @@
 					async selectPhrase(entry) {
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
-						this.phrase = entry.phrase;
-						this.playingRhythmPattern = entry.rhythmPattern || [];
-						this.playingTimeSignature = entry.timeSignature;
-						this.playingRoot = entry.root;
-						this.playingVariation = entry.variation;
-						this.playingInstrument = entry.instrument;
-						this.playingRhythmInstrument =
-							entry.rhythmInstrument || entry.instrument;
-						this.pendingPhrase = null;
-						this.pendingRhythmPattern = null;
-						this.pendingPhraseId = null;
-						this.pendingTimeSignature = null;
-						this.pendingRoot = null;
-						this.pendingVariation = null;
-						this.pendingInstrument = null;
-						this.pendingRhythmInstrument = null;
-						this.activePhraseId = entry.id;
-						this.stepIndex = 0;
-						this.playingIndex = -1;
-						this.isPlaying = true;
-						this.startLoopTimer();
-						this.status = `Playing saved phrase: ${entry.root} ${entry.variationLabel} \u00b7 ${entry.timeSignature}.`;
+
+						if (this.phrase.length && this.isPlaying) {
+							this.pendingPhrase = entry.phrase;
+							this.pendingRhythmPattern = entry.rhythmPattern || [];
+							this.pendingPhraseId = entry.id;
+							this.pendingTimeSignature = entry.timeSignature;
+							this.pendingRoot = entry.root;
+							this.pendingVariation = entry.variation;
+							this.pendingInstrument = entry.instrument;
+							this.pendingRhythmInstrument =
+								entry.rhythmInstrument || entry.instrument;
+							this.status =
+								'Selected phrase queued; it will switch on the next loop.';
+						} else {
+							this.phrase = entry.phrase;
+							this.playingRhythmPattern = entry.rhythmPattern || [];
+							this.playingTimeSignature = entry.timeSignature;
+							this.playingRoot = entry.root;
+							this.playingVariation = entry.variation;
+							this.playingInstrument = entry.instrument;
+							this.playingRhythmInstrument =
+								entry.rhythmInstrument || entry.instrument;
+							this.pendingPhrase = null;
+							this.pendingRhythmPattern = null;
+							this.pendingPhraseId = null;
+							this.pendingTimeSignature = null;
+							this.pendingRoot = null;
+							this.pendingVariation = null;
+							this.pendingInstrument = null;
+							this.pendingRhythmInstrument = null;
+							this.activePhraseId = entry.id;
+							this.stepIndex = 0;
+							this.playingIndex = -1;
+							this.isPlaying = true;
+							this.startLoopTimer();
+							this.status = `Playing saved phrase: ${entry.root} ${entry.variationLabel} \u00b7 ${entry.timeSignature}.`;
+						}
 					},
 					deletePhrase(entry) {
 						const deletingActive = this.activePhraseId === entry.id;
@@ -1461,6 +1480,16 @@
 							osc.start(now);
 							osc.stop(end + 0.03);
 						});
+
+						this.recordMidiNote({
+							channel: 0,
+							note: note.midi,
+							durationSec: durSec,
+							velocity: 96,
+							program: voice && this.getActiveInstrument()
+								? this.getActiveInstrument().midiProgram
+								: null,
+						});
 					},
 					playRhythmChord() {
 						if (!this._audio || !this.rhythmEnabled) {
@@ -1480,6 +1509,7 @@
 										layers: [{ type: 'sine' }],
 									};
 						const triad = this.getRhythmTriadMidis();
+						const rhythmProgram = instrument ? instrument.midiProgram : null;
 
 						triad.forEach((midi) => {
 							this.playLayeredNote(midi, chordDurSec, {
@@ -1487,6 +1517,13 @@
 								release: Math.min(voice.release, chordDurSec * 0.7),
 								volume: voice.volume * 0.75,
 								layers: voice.layers,
+							});
+							this.recordMidiNote({
+								channel: 1,
+								note: midi,
+								durationSec: chordDurSec,
+								velocity: 72,
+								program: rhythmProgram,
 							});
 						});
 					},
@@ -1527,6 +1564,15 @@
 
 							osc.start(now);
 							osc.stop(end + 0.03);
+						});
+					},
+					playRecordedDrum(note, durationSec, velocity) {
+						this.recordMidiNote({
+							channel: 9,
+							note,
+							durationSec,
+							velocity,
+							program: null,
 						});
 					},
 					tickLoop() {
@@ -1607,6 +1653,7 @@
 						gain.connect(master);
 						osc.start(now);
 						osc.stop(now + 0.2);
+						this.playRecordedDrum(36, 0.2, 110);
 					},
 					playSnare() {
 						if (!this._audio) {
@@ -1640,6 +1687,7 @@
 						noise.stop(now + 0.2);
 						osc.start(now);
 						osc.stop(now + 0.12);
+						this.playRecordedDrum(38, 0.2, 96);
 					},
 					playHat() {
 						if (!this._audio) {
@@ -1660,6 +1708,7 @@
 						gain.connect(master);
 						noise.start(now);
 						noise.stop(now + 0.06);
+						this.playRecordedDrum(42, 0.06, 70);
 					},
 					startDrumLoop() {
 						this.stopDrumLoop();
@@ -1774,6 +1823,227 @@
 						this.startDrumLoop();
 						this.startRhythmLoop();
 					},
+					recordMidiNote({ channel, note, durationSec, velocity, program }) {
+						if (!this.isMidiRecording || !this._audio || !this.midiRecording) {
+							return;
+						}
+
+						const startSec = Math.max(
+							0,
+							this._audio.ctx.currentTime - this.midiRecording.startedAt,
+						);
+
+						this.midiRecording.events.push({
+							startSec,
+							durationSec: Math.max(0.03, durationSec),
+							channel,
+							note,
+							velocity,
+							program: typeof program === 'number' ? program : null,
+						});
+					},
+					async toggleMidiRecording() {
+						this.ensureAudioContext();
+						await this._audio.ctx.resume();
+
+						if (this.isMidiRecording) {
+							this.stopMidiRecording();
+							return;
+						}
+
+						this.startMidiRecording();
+					},
+					startMidiRecording() {
+						this.midiRecording = {
+							startedAt: this._audio ? this._audio.ctx.currentTime : 0,
+							tempo: this.tempo,
+							timeSignature: this.playingTimeSignature,
+							timeSignatureNumerator: this.playingTimeSignatureObj.numerator,
+							timeSignatureDenominator: this.playingTimeSignatureObj.denominator,
+							events: [],
+						};
+						this.isMidiRecording = true;
+						this.status = 'MIDI recording started.';
+					},
+					stopMidiRecording() {
+						if (!this.isMidiRecording || !this.midiRecording) {
+							return;
+						}
+
+						const bytes = this.buildRecordedMidiBytes();
+						const blob = new Blob([bytes], { type: 'audio/midi' });
+						const url = URL.createObjectURL(blob);
+						const a = document.createElement('a');
+						a.href = url;
+						a.download = 'tunemaker-recording.mid';
+						document.body.appendChild(a);
+						a.click();
+						a.remove();
+						URL.revokeObjectURL(url);
+
+						this.isMidiRecording = false;
+						this.midiRecording = null;
+						this.status = 'MIDI recording downloaded.';
+					},
+					buildRecordedMidiBytes() {
+						if (!this.midiRecording) {
+							return null;
+						}
+
+						const ppq = 480;
+						const recording = this.midiRecording;
+						const secToTick = (sec) =>
+							Math.max(0, Math.round((sec * recording.tempo * ppq) / 60));
+						const events = [
+							{ tick: 0, type: 'tempo', mpq: Math.floor(60000000 / recording.tempo) },
+							{
+								tick: 0,
+								type: 'timesig',
+								numerator: recording.timeSignatureNumerator,
+								denominator: recording.timeSignatureDenominator,
+							},
+						];
+
+						const noteEvents = recording.events
+							.slice()
+							.sort((a, b) => {
+								if (a.startSec !== b.startSec) {
+									return a.startSec - b.startSec;
+								}
+								return a.channel - b.channel;
+							});
+						const programByChannel = new Map();
+
+						noteEvents.forEach((event) => {
+							const startTick = secToTick(event.startSec);
+							const endTick = secToTick(event.startSec + event.durationSec);
+
+							if (typeof event.program === 'number') {
+								if (programByChannel.get(event.channel) !== event.program) {
+									events.push({
+										tick: startTick,
+										type: 'program',
+										channel: event.channel,
+										program: event.program,
+									});
+									programByChannel.set(event.channel, event.program);
+								}
+							}
+
+							events.push({
+								tick: startTick,
+								type: 'on',
+								channel: event.channel,
+								note: event.note,
+								velocity: event.velocity,
+							});
+							events.push({
+								tick: endTick,
+								type: 'off',
+								channel: event.channel,
+								note: event.note,
+								velocity: 0,
+							});
+						});
+
+						const typeOrder = {
+							tempo: 0,
+							timesig: 1,
+							program: 2,
+							off: 3,
+							on: 4,
+							end: 5,
+						};
+						const endTick = events.reduce(
+							(max, event) => Math.max(max, event.tick),
+							0,
+						);
+						events.push({ tick: endTick, type: 'end' });
+
+						events.sort((a, b) => {
+							if (a.tick !== b.tick) {
+								return a.tick - b.tick;
+							}
+
+							return typeOrder[a.type] - typeOrder[b.type];
+						});
+
+						const trackData = [];
+						let previousTick = 0;
+
+						events.forEach((event) => {
+							const delta = event.tick - previousTick;
+							trackData.push(...this.encodeVarLen(delta));
+
+							if (event.type === 'tempo') {
+								trackData.push(0xff, 0x51, 0x03);
+								trackData.push(
+									(event.mpq >> 16) & 0xff,
+									(event.mpq >> 8) & 0xff,
+									event.mpq & 0xff,
+								);
+							} else if (event.type === 'timesig') {
+								trackData.push(
+									0xff,
+									0x58,
+									0x04,
+									event.numerator,
+									Math.round(Math.log2(event.denominator)),
+									24,
+									8,
+								);
+							} else if (event.type === 'program') {
+								trackData.push(0xc0 | (event.channel & 0x0f), event.program & 0x7f);
+							} else if (event.type === 'on') {
+								trackData.push(
+									0x90 | (event.channel & 0x0f),
+									event.note & 0x7f,
+									event.velocity & 0x7f,
+								);
+							} else if (event.type === 'off') {
+								trackData.push(
+									0x80 | (event.channel & 0x0f),
+									event.note & 0x7f,
+									event.velocity & 0x7f,
+								);
+							} else if (event.type === 'end') {
+								trackData.push(0xff, 0x2f, 0x00);
+							}
+
+							previousTick = event.tick;
+						});
+
+						const header = [
+							0x4d,
+							0x54,
+							0x68,
+							0x64,
+							0x00,
+							0x00,
+							0x00,
+							0x06,
+							0x00,
+							0x00,
+							0x00,
+							0x01,
+							(ppq >> 8) & 0xff,
+							ppq & 0xff,
+						];
+
+						const trackLength = trackData.length;
+						const trackHeader = [
+							0x4d,
+							0x54,
+							0x72,
+							0x6b,
+							(trackLength >> 24) & 0xff,
+							(trackLength >> 16) & 0xff,
+							(trackLength >> 8) & 0xff,
+							trackLength & 0xff,
+						];
+
+						return new Uint8Array([...header, ...trackHeader, ...trackData]);
+					},
 					stopLoopTimer() {
 						if (this.loopTimerId !== null) {
 							window.clearTimeout(this.loopTimerId);
@@ -1881,171 +2151,6 @@
 						}
 
 						return bytes;
-					},
-					buildMidiBytes() {
-						if (!this.phrase.length) {
-							return null;
-						}
-
-						const ppq = 480;
-						const events = [];
-						const loopsToExport = 8;
-						const microPerQuarter = Math.floor(60000000 / this.tempo);
-						const instrument = this.getActiveInstrument();
-						const ts = this.playingTimeSignatureObj;
-
-						events.push({ tick: 0, type: 'tempo', mpq: microPerQuarter });
-						events.push({
-							tick: 0,
-							type: 'timesig',
-							numerator: ts.numerator,
-							denominator: ts.denominator,
-						});
-						events.push({
-							tick: 0,
-							type: 'program',
-							program: instrument.midiProgram,
-						});
-
-						let cursor = 0;
-
-						for (let loop = 0; loop < loopsToExport; loop += 1) {
-							for (let s = 0; s < this.phrase.length; s += 1) {
-								const step = this.phrase[s];
-								const durTicks = Math.max(1, Math.round(step.beats * ppq));
-								const start = cursor;
-								const end = start + durTicks;
-
-								if (!step.rest) {
-									events.push({
-										tick: start,
-										type: 'on',
-										note: step.midi,
-										velocity: 96,
-									});
-									events.push({
-										tick: end,
-										type: 'off',
-										note: step.midi,
-										velocity: 0,
-									});
-								}
-
-								cursor = end;
-							}
-						}
-
-						const typeOrder = {
-							tempo: 0,
-							timesig: 1,
-							program: 2,
-							off: 3,
-							on: 4,
-							end: 5,
-						};
-						const endTick = cursor;
-						events.push({ tick: endTick, type: 'end' });
-
-						events.sort((a, b) => {
-							if (a.tick !== b.tick) {
-								return a.tick - b.tick;
-							}
-
-							return typeOrder[a.type] - typeOrder[b.type];
-						});
-
-						const trackData = [];
-						let previousTick = 0;
-
-						events.forEach((event) => {
-							const delta = event.tick - previousTick;
-							trackData.push(...this.encodeVarLen(delta));
-
-							if (event.type === 'tempo') {
-								trackData.push(0xff, 0x51, 0x03);
-								trackData.push(
-									(event.mpq >> 16) & 0xff,
-									(event.mpq >> 8) & 0xff,
-									event.mpq & 0xff,
-								);
-							} else if (event.type === 'timesig') {
-								trackData.push(
-									0xff,
-									0x58,
-									0x04,
-									event.numerator,
-									Math.round(Math.log2(event.denominator)),
-									24,
-									8,
-								);
-							} else if (event.type === 'program') {
-								trackData.push(0xc0, event.program & 0x7f);
-							} else if (event.type === 'on') {
-								trackData.push(0x90, event.note & 0x7f, event.velocity & 0x7f);
-							} else if (event.type === 'off') {
-								trackData.push(0x80, event.note & 0x7f, event.velocity & 0x7f);
-							} else if (event.type === 'end') {
-								trackData.push(0xff, 0x2f, 0x00);
-							}
-
-							previousTick = event.tick;
-						});
-
-						const header = [
-							0x4d,
-							0x54,
-							0x68,
-							0x64,
-							0x00,
-							0x00,
-							0x00,
-							0x06,
-							0x00,
-							0x00,
-							0x00,
-							0x01,
-							(ppq >> 8) & 0xff,
-							ppq & 0xff,
-						];
-
-						const trackLength = trackData.length;
-						const trackHeader = [
-							0x4d,
-							0x54,
-							0x72,
-							0x6b,
-							(trackLength >> 24) & 0xff,
-							(trackLength >> 16) & 0xff,
-							(trackLength >> 8) & 0xff,
-							trackLength & 0xff,
-						];
-
-						return new Uint8Array([...header, ...trackHeader, ...trackData]);
-					},
-					exportMidi() {
-						if (!this.phrase.length) {
-							this.status = 'Generate a phrase first, then export MIDI.';
-							return;
-						}
-
-						const bytes = this.buildMidiBytes();
-						if (!bytes) {
-							this.status = 'MIDI export failed.';
-							return;
-						}
-
-						const blob = new Blob([bytes], { type: 'audio/midi' });
-						const url = URL.createObjectURL(blob);
-						const a = document.createElement('a');
-						const safeVariation = this.selectedVariation.replace(/\s+/g, '-');
-						a.href = url;
-						a.download = `tunemaker-${this.selectedRoot}-${safeVariation}.mid`;
-						document.body.appendChild(a);
-						a.click();
-						a.remove();
-						URL.revokeObjectURL(url);
-
-						this.status = 'MIDI file exported.';
 					},
 				},
 			}).mount('#app');
