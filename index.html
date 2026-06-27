@@ -193,6 +193,13 @@
 				font-size: 0.92rem;
 			}
 
+			.warning {
+				margin-top: 8px;
+				color: #fbbf24;
+				min-height: 1.35rem;
+				font-size: 0.9rem;
+			}
+
 			.phrase {
 				display: flex;
 				gap: 8px;
@@ -227,6 +234,12 @@
 				background: rgba(148, 163, 184, 0.12);
 				color: var(--muted);
 				font-style: italic;
+			}
+
+			.chip.overlong {
+				background: rgba(185, 28, 28, 0.28);
+				border-color: rgba(248, 113, 113, 0.75);
+				color: #fecaca;
 			}
 
 			.pending {
@@ -461,6 +474,9 @@
 								{{ instrument.label }}
 							</option>
 						</select>
+						<p class="subtitle" style="margin-top: 8px">
+							WAV samples: place files in samples/&lt;instrument-name&gt;.wav
+						</p>
 					</div>
 
 					<div class="toggle-row">
@@ -496,6 +512,7 @@
 					</div>
 
 					<p class="status">{{ status }}</p>
+					<p v-if="sampleWarning" class="warning">{{ sampleWarning }}</p>
 				</section>
 
 				<div class="right-column">
@@ -507,7 +524,7 @@
 						<div class="phrase">
 							<span
 								class="chip"
-								:class="{ playing: isPlaying && playingIndex === idx, rest: chip.rest }"
+								:class="{ playing: isPlaying && playingIndex === idx, rest: chip.rest, overlong: chip.overlong }"
 								v-for="(chip, idx) in phraseChips"
 								:key="idx"
 								>{{ chip.label }}</span
@@ -519,7 +536,7 @@
 						<div class="phrase">
 							<span
 								class="chip"
-								:class="{ playing: isPlaying && rhythmPlayingIndex === idx, rest: chip.rest }"
+								:class="{ playing: isPlaying && rhythmPlayingIndex === idx, rest: chip.rest, overlong: chip.overlong }"
 								v-for="(chip, idx) in rhythmChips"
 								:key="`rhythm-${idx}`"
 								>{{ chip.label }}</span
@@ -606,95 +623,109 @@
 						],
 						instruments: [
 							{
-								name: 'warm-keys',
-								label: 'Warm Keys',
-								midiProgram: 0,
-								voice: {
-									attack: 0.01,
-									release: 0.28,
-									volume: 0.22,
-									layers: [{ type: 'triangle' }],
-								},
-							},
-							{
-								name: 'e-piano',
-								label: 'Electric Piano',
-								midiProgram: 4,
-								voice: {
-									attack: 0.005,
-									release: 0.3,
-									volume: 0.2,
-									layers: [
-										{ type: 'triangle', gain: 1 },
-										{ type: 'sine', ratio: 2, gain: 0.35 },
-									],
-								},
-							},
-							{
-								name: 'pluck',
-								label: 'Pluck',
-								midiProgram: 24,
+								name: 'banjo',
+								label: 'Banjo',
+								midiProgram: 105,
 								voice: {
 									attack: 0.002,
-									release: 0.12,
+									release: 0.14,
 									volume: 0.18,
 									layers: [{ type: 'square' }],
 								},
 							},
 							{
-								name: 'harpsichord',
-								label: 'Harpsichord',
-								midiProgram: 6,
+								name: 'bass-clarinet',
+								label: 'Bass Clarinet',
+								midiProgram: 71,
 								voice: {
-									attack: 0.001,
-									release: 0.1,
-									volume: 0.15,
+									attack: 0.03,
+									release: 0.25,
+									volume: 0.2,
 									layers: [
-										{ type: 'square', gain: 1 },
-										{ type: 'square', ratio: 2, gain: 0.4 },
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.2 },
 									],
 								},
 							},
 							{
-								name: 'organ',
-								label: 'Organ',
-								midiProgram: 19,
+								name: 'bassoon',
+								label: 'Bassoon',
+								midiProgram: 70,
 								voice: {
 									attack: 0.02,
-									release: 0.18,
+									release: 0.24,
+									volume: 0.18,
+									layers: [{ type: 'triangle' }],
+								},
+							},
+							{
+								name: 'cello',
+								label: 'Cello',
+								midiProgram: 42,
+								voice: {
+									attack: 0.05,
+									release: 0.35,
 									volume: 0.18,
 									layers: [
-										{ type: 'sine', gain: 1 },
-										{ type: 'sine', ratio: 2, gain: 0.6 },
-										{ type: 'sine', ratio: 3, gain: 0.3 },
+										{ type: 'sawtooth', detune: -5, gain: 1 },
+										{ type: 'sawtooth', detune: 5, gain: 0.8 },
 									],
 								},
 							},
 							{
-								name: 'strings',
-								label: 'Strings',
-								midiProgram: 48,
+								name: 'clarinet',
+								label: 'Clarinet',
+								midiProgram: 71,
 								voice: {
-									attack: 0.12,
-									release: 0.4,
-									volume: 0.16,
+									attack: 0.02,
+									release: 0.22,
+									volume: 0.18,
 									layers: [
-										{ type: 'sawtooth', detune: -7, gain: 1 },
-										{ type: 'sawtooth', detune: 7, gain: 1 },
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.2 },
 									],
 								},
 							},
 							{
-								name: 'brass',
-								label: 'Brass',
-								midiProgram: 61,
+								name: 'contrabassoon',
+								label: 'Contrabassoon',
+								midiProgram: 70,
 								voice: {
 									attack: 0.04,
-									release: 0.2,
-									volume: 0.16,
+									release: 0.4,
+									volume: 0.2,
 									layers: [
-										{ type: 'sawtooth', detune: -4, gain: 1 },
-										{ type: 'sawtooth', detune: 4, gain: 1 },
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 0.5, gain: 0.6 },
+									],
+								},
+							},
+							{
+								name: 'cor-anglais',
+								label: 'Cor Anglais',
+								sampleName: 'english-horn',
+								midiProgram: 69,
+								voice: {
+									attack: 0.03,
+									release: 0.2,
+									volume: 0.18,
+									layers: [
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.25 },
+									],
+								},
+							},
+							{
+								name: 'double-bass',
+								label: 'Double Bass',
+								midiProgram: 43,
+								voice: {
+									attack: 0.03,
+									release: 0.32,
+									volume: 0.2,
+									layers: [
+										{ type: 'sawtooth', gain: 1 },
+										{ type: 'sine', ratio: 0.5, gain: 0.5 },
 									],
 								},
 							},
@@ -703,100 +734,154 @@
 								label: 'Flute',
 								midiProgram: 73,
 								voice: {
-									attack: 0.06,
+									attack: 0.04,
 									release: 0.2,
-									volume: 0.22,
+									volume: 0.2,
 									layers: [
 										{ type: 'sine', gain: 1 },
-										{ type: 'triangle', ratio: 2, gain: 0.12 },
+										{ type: 'triangle', ratio: 2, gain: 0.15 },
 									],
 								},
 							},
 							{
-								name: 'bell',
-								label: 'Bell',
-								midiProgram: 14,
+								name: 'french-horn',
+								label: 'French Horn',
+								midiProgram: 60,
 								voice: {
-									attack: 0.001,
-									release: 0.5,
+									attack: 0.04,
+									release: 0.2,
 									volume: 0.16,
 									layers: [
-										{ type: 'sine', gain: 1 },
-										{ type: 'sine', ratio: 3.01, gain: 0.4 },
-										{ type: 'sine', ratio: 5.02, gain: 0.18 },
+										{ type: 'sawtooth', detune: -4, gain: 1 },
+										{ type: 'sawtooth', detune: 4, gain: 0.8 },
 									],
 								},
 							},
 							{
-								name: 'synth-lead',
-								label: 'Synth Lead',
-								midiProgram: 81,
+								name: 'guitar',
+								label: 'Guitar',
+								midiProgram: 24,
 								voice: {
 									attack: 0.005,
-									release: 0.2,
-									volume: 0.16,
-									layers: [
-										{ type: 'square', detune: -8, gain: 1 },
-										{ type: 'sawtooth', detune: 8, gain: 0.6 },
-									],
+									release: 0.15,
+									volume: 0.18,
+									layers: [{ type: 'square' }],
 								},
 							},
 							{
-								name: 'pad',
-								label: 'Warm Pad',
-								midiProgram: 89,
-								voice: {
-									attack: 0.18,
-									release: 0.5,
-									volume: 0.16,
-									layers: [
-										{ type: 'triangle', detune: -6, gain: 1 },
-										{ type: 'triangle', detune: 6, gain: 1 },
-										{ type: 'sine', ratio: 2, gain: 0.3 },
-									],
-								},
-							},
-							{
-								name: 'bass',
-								label: 'Bass',
-								midiProgram: 33,
+								name: 'mandolin',
+								label: 'Mandolin',
+								midiProgram: 25,
 								voice: {
 									attack: 0.004,
-									release: 0.22,
-									volume: 0.2,
-									layers: [{ type: 'sawtooth' }],
+									release: 0.12,
+									volume: 0.18,
+									layers: [{ type: 'square' }],
 								},
 							},
 							{
-								name: 'sub-bass',
-								label: 'Sub Bass',
-								midiProgram: 38,
+								name: 'oboe',
+								label: 'Oboe',
+								midiProgram: 68,
 								voice: {
-									attack: 0.006,
-									release: 0.25,
-									volume: 0.22,
+									attack: 0.02,
+									release: 0.2,
+									volume: 0.2,
 									layers: [
-										{ type: 'sine', gain: 1 },
-										{ type: 'triangle', ratio: 2, gain: 0.25 },
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 2, gain: 0.2 },
 									],
 								},
 							},
 							{
-								name: 'mallet',
-								label: 'Mallet',
-								midiProgram: 12,
+								name: 'saxophone',
+								label: 'Saxophone',
+								midiProgram: 65,
 								voice: {
-									attack: 0.001,
-									release: 0.16,
+									attack: 0.015,
+									release: 0.18,
+									volume: 0.18,
+									layers: [
+										{ type: 'sawtooth', gain: 1 },
+										{ type: 'triangle', ratio: 2, gain: 0.15 },
+									],
+								},
+							},
+							{
+								name: 'trombone',
+								label: 'Trombone',
+								midiProgram: 57,
+								voice: {
+									attack: 0.02,
+									release: 0.22,
+									volume: 0.17,
+									layers: [
+										{ type: 'sawtooth', detune: -4, gain: 1 },
+										{ type: 'sawtooth', detune: 4, gain: 0.7 },
+									],
+								},
+							},
+							{
+								name: 'trumpet',
+								label: 'Trumpet',
+								midiProgram: 56,
+								voice: {
+									attack: 0.01,
+									release: 0.17,
+									volume: 0.17,
+									layers: [
+										{ type: 'sawtooth', gain: 1 },
+										{ type: 'square', ratio: 2, gain: 0.2 },
+									],
+								},
+							},
+							{
+								name: 'tuba',
+								label: 'Tuba',
+								midiProgram: 58,
+								voice: {
+									attack: 0.03,
+									release: 0.28,
 									volume: 0.2,
-									layers: [{ type: 'sine' }],
+									layers: [
+										{ type: 'triangle', gain: 1 },
+										{ type: 'sine', ratio: 0.5, gain: 0.5 },
+									],
+								},
+							},
+							{
+								name: 'viola',
+								label: 'Viola',
+								midiProgram: 41,
+								voice: {
+									attack: 0.05,
+									release: 0.3,
+									volume: 0.17,
+									layers: [
+										{ type: 'sawtooth', detune: -5, gain: 1 },
+										{ type: 'sawtooth', detune: 5, gain: 0.8 },
+									],
+								},
+							},
+							{
+								name: 'violin',
+								label: 'Violin',
+								midiProgram: 40,
+								voice: {
+									attack: 0.04,
+									release: 0.28,
+									volume: 0.17,
+									layers: [
+										{ type: 'sawtooth', detune: -6, gain: 1 },
+										{ type: 'sawtooth', detune: 6, gain: 0.8 },
+									],
 								},
 							},
 						],
 						selectedRoot: 'C',
 						selectedVariation: 'minor',
-						selectedInstrument: 'warm-keys',
-						selectedRhythmInstrument: 'warm-keys',
+						selectedInstrument: 'flute',
+						selectedRhythmInstrument: 'flute',
 						timeSignatures: [
 							{ name: '4/4', numerator: 4, denominator: 4 },
 							{ name: '3/4', numerator: 3, denominator: 4 },
@@ -836,11 +921,12 @@
 						pendingRoot: null,
 						playingVariation: 'minor',
 						pendingVariation: null,
-						playingInstrument: 'warm-keys',
+						playingInstrument: 'flute',
 						pendingInstrument: null,
-						playingRhythmInstrument: 'warm-keys',
+						playingRhythmInstrument: 'flute',
 						pendingRhythmInstrument: null,
 						status: 'Press Go to generate and start playback.',
+						sampleWarning: '',
 						isPlaying: false,
 						isMidiRecording: false,
 						isRootSelectFocused: false,
@@ -880,6 +966,7 @@
 							'A#',
 							'B',
 						],
+						sampleBasePath: 'samples',
 					};
 				},
 				computed: {
@@ -931,8 +1018,11 @@
 
 						return this.phrase.map((n) => {
 							const dur = this.durationLabel(n.beats);
+							const instrument = this.getActiveInstrument();
+							const overlong = !n.rest && this.noteSustainsPastDuration(n.midi, n.beats, instrument);
 							return {
 								rest: !!n.rest,
+								overlong,
 								label: n.rest
 									? `Rest \u00b7 ${dur}`
 									: `${this.midiToLabel(n.midi)} \u00b7 ${dur}`,
@@ -946,8 +1036,14 @@
 
 						return this.playingRhythmPattern.map((step) => {
 							const dur = this.durationLabel(step.beats);
+							const instrument = this.getActiveRhythmInstrument();
+							const triad = this.getRhythmTriadMidis();
+							const overlong =
+								step.hit &&
+								triad.some((midi) => this.noteSustainsPastDuration(midi, step.beats, instrument));
 							return {
 								rest: !step.hit,
+								overlong: !!overlong,
 								label: step.hit ? `Chord \u00b7 ${dur}` : `Rest \u00b7 ${dur}`,
 							};
 						});
@@ -1041,12 +1137,26 @@
 						// so a tempo change is picked up automatically on the next note.
 					},
 					selectedInstrument(newInstrument) {
+						this.sampleWarning = '';
+						if (this._audio) {
+							const instrument =
+								this.instruments.find((item) => item.name === newInstrument) ||
+								this.instruments[0];
+							this.queueInstrumentSample(instrument);
+						}
 						if (this.isPlaying) {
 							this.applyInstrumentToActivePhrase(newInstrument);
 							this.status = 'Instrument updated for current phrase.';
 						}
 					},
 					selectedRhythmInstrument(newInstrument) {
+						this.sampleWarning = '';
+						if (this._audio) {
+							const instrument =
+								this.instruments.find((item) => item.name === newInstrument) ||
+								this.instruments[0];
+							this.queueInstrumentSample(instrument);
+						}
 						if (this.isPlaying) {
 							this.applyRhythmInstrumentToActivePhrase(newInstrument);
 							this.status = 'Rhythm instrument updated for current phrase.';
@@ -1131,6 +1241,16 @@
 					async selectPhrase(entry) {
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
+						await this.ensureInstrumentSampleReady(
+							this.instruments.find((item) => item.name === entry.instrument) ||
+								this.instruments[0],
+						);
+						await this.ensureInstrumentSampleReady(
+							this.instruments.find(
+								(item) =>
+									item.name === (entry.rhythmInstrument || entry.instrument),
+							) || this.instruments[0],
+						);
 
 						if (this.phrase.length && this.isPlaying) {
 							this.pendingPhrase = entry.phrase;
@@ -1257,8 +1377,42 @@
 							? null
 							: Number(this.selectedNoteCount);
 					},
+					getInstrumentOctaves(instrument, part = 'melody') {
+						const name = instrument && instrument.name ? instrument.name : '';
+						const ranges = {
+							banjo: { melody: [3, 4, 5], rhythm: [3, 4] },
+							'bass-clarinet': { melody: [2, 3, 4], rhythm: [2, 3] },
+							bassoon: { melody: [2, 3, 4], rhythm: [2, 3] },
+							cello: { melody: [2, 3, 4], rhythm: [2, 3] },
+							clarinet: { melody: [3, 4, 5], rhythm: [3, 4] },
+							contrabassoon: { melody: [1, 2, 3], rhythm: [1, 2] },
+							'cor-anglais': { melody: [3, 4, 5], rhythm: [3, 4] },
+							'double-bass': { melody: [1, 2, 3], rhythm: [1, 2] },
+							flute: { melody: [4, 5, 6], rhythm: [4, 5] },
+							'french-horn': { melody: [2, 3, 4], rhythm: [2, 3] },
+							guitar: { melody: [3, 4, 5], rhythm: [3, 4] },
+							mandolin: { melody: [4, 5, 6], rhythm: [4, 5] },
+							oboe: { melody: [4, 5, 6], rhythm: [4, 5] },
+							saxophone: { melody: [3, 4, 5], rhythm: [3, 4] },
+							trombone: { melody: [2, 3, 4], rhythm: [2, 3] },
+							trumpet: { melody: [4, 5], rhythm: [3, 4] },
+							tuba: { melody: [1, 2, 3], rhythm: [1, 2] },
+							viola: { melody: [3, 4, 5], rhythm: [3, 4] },
+							violin: { melody: [4, 5, 6], rhythm: [4, 5] },
+						};
+
+						const instrumentRange = ranges[name];
+						if (!instrumentRange) {
+							return part === 'rhythm' ? [3, 4] : [3, 4, 5];
+						}
+
+						return instrumentRange[part] || instrumentRange.melody;
+					},
 					randomChordNote() {
-						const octaves = [2, 3, 4, 5];
+						const octaves = this.getInstrumentOctaves(
+							this.getSelectedInstrument(),
+							'melody',
+						);
 						const pitchClass = this.randomItem(this.chordToneMidiClasses);
 						const octave = this.randomItem(octaves);
 						return octave * 12 + pitchClass;
@@ -1312,7 +1466,6 @@
 						}));
 					},
 					buildVariablePhrase() {
-						const octaves = [2, 3, 4, 5];
 						// Durations in quarter-note beats: 1/16, 1/8, 1/4, 1/2.
 						const durations = [0.25, 0.5, 1, 2];
 						const phrase = [];
@@ -1327,10 +1480,8 @@
 							if (isRest) {
 								phrase.push({ rest: true, beats });
 							} else {
-								const pitchClass = this.randomItem(this.chordToneMidiClasses);
-								const octave = this.randomItem(octaves);
 								phrase.push({
-									midi: octave * 12 + pitchClass,
+									midi: this.randomChordNote(),
 									beats,
 									rest: false,
 								});
@@ -1370,11 +1521,15 @@
 						return `${name}${octave}`;
 					},
 					getRhythmTriadMidis() {
-						return this.playingChordToneMidiClasses
-							.slice(0, 3)
-							.map((pitchClass) => {
-								return 36 + pitchClass;
-							});
+						const instrument = this.getActiveRhythmInstrument();
+						const octaves = this.getInstrumentOctaves(instrument, 'rhythm');
+						const melodyOctaves = this.getInstrumentOctaves(instrument, 'melody');
+						const preferredOctave = Math.max(...octaves, 3);
+						const maxMelodyOctave = Math.max(...melodyOctaves, preferredOctave);
+						const baseOctave = Math.min(maxMelodyOctave, preferredOctave + 1);
+						return this.playingChordToneMidiClasses.slice(0, 3).map((pitchClass) => {
+							return baseOctave * 12 + pitchClass;
+						});
 					},
 					getSelectedInstrument() {
 						return (
@@ -1396,6 +1551,13 @@
 								(ins) => ins.name === this.playingRhythmInstrument,
 							) || this.getActiveInstrument()
 						);
+					},
+					getInstrumentSampleUrl(instrument) {
+						const safeName =
+							instrument && (instrument.sampleName || instrument.name)
+								? instrument.sampleName || instrument.name
+								: 'flute';
+						return `${this.sampleBasePath}/${safeName}.wav`;
 					},
 					ensureAudioContext() {
 						// IMPORTANT: keep audio nodes OUT of Vue's reactive data.
@@ -1421,8 +1583,189 @@
 								noiseData[i] = Math.random() * 2 - 1;
 							}
 
-							this._audio = { ctx, master, noiseBuffer };
+							this._audio = {
+								ctx,
+								master,
+								noiseBuffer,
+								sampleCache: new Map(),
+								missingSampleUrls: new Set(),
+							};
 						}
+					},
+					queueInstrumentSample(instrument) {
+						if (!this._audio) {
+							return null;
+						}
+
+						const url = this.getInstrumentSampleUrl(instrument);
+						const existing = this._audio.sampleCache.get(url);
+						if (existing) {
+							if (existing.status === 'error') {
+								this._audio.sampleCache.delete(url);
+							} else {
+							return existing;
+							}
+						}
+
+						const isFileOrigin =
+							window.location.protocol === 'file:' ||
+							window.location.origin === 'null';
+
+						const pending = {
+							status: 'loading',
+							buffer: null,
+							normalizationGain: 1,
+							promise: null,
+						};
+
+						if (isFileOrigin) {
+							pending.status = 'error';
+							pending.promise = Promise.resolve(null);
+							this._audio.sampleCache.set(url, pending);
+							return pending;
+						}
+						pending.promise = fetch(url)
+							.then((response) => {
+								if (!response.ok) {
+									throw new Error(`HTTP ${response.status}`);
+								}
+								return response.arrayBuffer();
+							})
+							.then((data) => this._audio.ctx.decodeAudioData(data))
+							.then((buffer) => {
+								pending.status = 'ready';
+								pending.buffer = buffer;
+								pending.normalizationGain = this.getSampleNormalizationGain(buffer);
+								this._audio.missingSampleUrls.delete(url);
+								return buffer;
+							})
+							.catch(() => {
+								pending.status = 'error';
+								if (!this._audio.missingSampleUrls.has(url)) {
+									this._audio.missingSampleUrls.add(url);
+								}
+								return null;
+							});
+
+						this._audio.sampleCache.set(url, pending);
+						return pending;
+					},
+					getSampleNormalizationGain(buffer) {
+						if (!buffer || !buffer.numberOfChannels) {
+							return 1;
+						}
+
+						let peak = 0;
+						for (let channelIndex = 0; channelIndex < buffer.numberOfChannels; channelIndex += 1) {
+							const channel = buffer.getChannelData(channelIndex);
+							for (let sampleIndex = 0; sampleIndex < channel.length; sampleIndex += 1) {
+								const level = Math.abs(channel[sampleIndex]);
+								if (level > peak) {
+									peak = level;
+								}
+							}
+						}
+
+						if (peak <= 0.0001) {
+							return 1;
+						}
+
+						return Math.min(10, Math.max(1, 0.45 / peak));
+					},
+					async ensureInstrumentSampleReady(instrument) {
+						const sample = this.queueInstrumentSample(instrument);
+						if (!sample) {
+							return false;
+						}
+
+						if (sample.status === 'ready' && sample.buffer) {
+							return true;
+						}
+
+						if (sample.promise) {
+							await sample.promise;
+						}
+
+						return sample.status === 'ready' && !!sample.buffer;
+					},
+					getSamplePlaybackTiming(midi, durSec, instrument) {
+						if (!this._audio || !instrument) {
+							return null;
+						}
+
+						const sample = this.queueInstrumentSample(instrument);
+						if (!sample || sample.status !== 'ready' || !sample.buffer) {
+							return null;
+						}
+
+						const rootMidi =
+							typeof instrument.sampleRootMidi === 'number'
+								? instrument.sampleRootMidi
+								: 60;
+						const playbackRate = Math.pow(2, (midi - rootMidi) / 12);
+						const naturalDuration = sample.buffer.duration / playbackRate;
+						const audibleDuration = Math.max(
+							durSec + 0.08,
+							Math.min(naturalDuration, 1.4),
+							0.24,
+						);
+
+						return {
+							sample,
+							playbackRate,
+							audibleDuration,
+						};
+					},
+					noteSustainsPastDuration(midi, beats, instrument) {
+						const timing = this.getSamplePlaybackTiming(
+							midi,
+							Math.max(0.08, beats * this.getBeatMs() / 1000),
+							instrument,
+						);
+						if (!timing) {
+							return false;
+						}
+
+						const intendedDuration = Math.max(0.08, beats * this.getBeatMs() / 1000);
+						return timing.audibleDuration > intendedDuration + 0.03;
+					},
+					playSampledNote(midi, durSec, instrument, options = {}) {
+						if (!this._audio || !instrument) {
+							return false;
+						}
+
+						const timing = this.getSamplePlaybackTiming(midi, durSec, instrument);
+						if (!timing) {
+							return false;
+						}
+
+						const { ctx, master } = this._audio;
+						const now = ctx.currentTime;
+						const { sample, playbackRate, audibleDuration } = timing;
+						const attack = Math.max(0.001, Math.min(0.01, audibleDuration * 0.08));
+						const release = Math.max(0.05, Math.min(0.24, audibleDuration * 0.35));
+						const end = now + audibleDuration;
+						const sustainUntil = Math.max(now + attack, end - release);
+
+						const source = ctx.createBufferSource();
+						source.buffer = sample.buffer;
+						source.playbackRate.setValueAtTime(playbackRate, now);
+
+						const gain = ctx.createGain();
+						const level = Math.max(
+							0.05,
+							Math.min(2.5, (options.volume || 0.28) * (sample.normalizationGain || 1)),
+						);
+						gain.gain.setValueAtTime(0.0001, now);
+						gain.gain.linearRampToValueAtTime(level, now + attack);
+						gain.gain.setValueAtTime(level, sustainUntil);
+						gain.gain.exponentialRampToValueAtTime(0.0001, end);
+
+						source.connect(gain);
+						gain.connect(master);
+						source.start(now);
+						source.stop(end + 0.04);
+						return true;
 					},
 					getInstrumentVoice() {
 						const instrument = this.getActiveInstrument();
@@ -1438,57 +1781,46 @@
 							layers: [{ type: 'sine' }],
 						};
 					},
+					noteSynthFallback(instrument) {
+						if (this.sampleWarning) {
+							return;
+						}
+
+						const instrumentLabel = instrument ? instrument.label : 'This instrument';
+						const runningFromFile =
+							window.location.protocol === 'file:' ||
+							window.location.origin === 'null';
+
+						this.sampleWarning = runningFromFile
+							? `${instrumentLabel} is using synth fallback because WAV samples do not load from file://. Serve TuneMaker over HTTP to hear the samples.`
+							: `${instrumentLabel} is using synth fallback because its WAV sample could not be loaded.`;
+					},
 					playStepNote(note) {
 						if (!this._audio || note.rest) {
 							return;
 						}
 
 						const { ctx, master } = this._audio;
-						const voice = this.getInstrumentVoice();
 						const now = ctx.currentTime;
-						const freq = this.midiToFreq(note.midi);
 
 						const beatSec = this.getBeatMs() / 1000;
 						const durSec = Math.max(0.08, note.beats * beatSec);
-						const attack = Math.min(voice.attack, durSec * 0.5);
-						const release = Math.min(voice.release, durSec * 0.9);
-						const end = now + durSec;
-						const sustainUntil = Math.max(now + attack, end - release);
-
-						const gain = ctx.createGain();
-						gain.gain.setValueAtTime(0.0001, now);
-						gain.gain.linearRampToValueAtTime(voice.volume, now + attack);
-						gain.gain.setValueAtTime(voice.volume, sustainUntil);
-						gain.gain.exponentialRampToValueAtTime(0.0001, end);
-						gain.connect(master);
-
-						const layers = voice.layers || [{ type: voice.type || 'sine' }];
-						layers.forEach((layer) => {
-							const osc = ctx.createOscillator();
-							osc.type = layer.type || 'sine';
-							osc.frequency.setValueAtTime(freq * (layer.ratio || 1), now);
-							if (layer.detune) {
-								osc.detune.setValueAtTime(layer.detune, now);
-							}
-
-							const layerGain = ctx.createGain();
-							layerGain.gain.value = layer.gain != null ? layer.gain : 1;
-
-							osc.connect(layerGain);
-							layerGain.connect(gain);
-
-							osc.start(now);
-							osc.stop(end + 0.03);
+						const instrument = this.getActiveInstrument();
+						const playedSample = this.playSampledNote(note.midi, durSec, instrument, {
+							volume: 0.26,
 						});
+						if (!playedSample) {
+							this.noteSynthFallback(instrument);
+							const voice = this.getInstrumentVoice();
+							this.playLayeredNote(note.midi, durSec, voice);
+						}
 
 						this.recordMidiNote({
 							channel: 0,
 							note: note.midi,
 							durationSec: durSec,
 							velocity: 96,
-							program: voice && this.getActiveInstrument()
-								? this.getActiveInstrument().midiProgram
-								: null,
+							program: instrument ? instrument.midiProgram : null,
 						});
 					},
 					playRhythmChord() {
@@ -1503,21 +1835,30 @@
 							instrument && instrument.voice
 								? instrument.voice
 								: {
-										attack: 0.01,
-										release: 0.18,
-										volume: 0.2,
-										layers: [{ type: 'sine' }],
-									};
+									attack: 0.01,
+									release: 0.18,
+									volume: 0.2,
+									layers: [{ type: 'sine' }],
+								};
 						const triad = this.getRhythmTriadMidis();
 						const rhythmProgram = instrument ? instrument.midiProgram : null;
 
 						triad.forEach((midi) => {
-							this.playLayeredNote(midi, chordDurSec, {
-								attack: Math.min(voice.attack, chordDurSec * 0.35),
-								release: Math.min(voice.release, chordDurSec * 0.7),
-								volume: voice.volume * 0.75,
-								layers: voice.layers,
-							});
+							const playedSample = this.playSampledNote(
+								midi,
+								chordDurSec,
+								instrument,
+								{ volume: Math.max(0.16, voice.volume * 1.15) },
+							);
+							if (!playedSample) {
+								this.noteSynthFallback(instrument);
+								this.playLayeredNote(midi, chordDurSec, {
+									attack: Math.min(voice.attack, chordDurSec * 0.35),
+									release: Math.min(voice.release, chordDurSec * 0.7),
+									volume: voice.volume * 0.75,
+									layers: voice.layers,
+								});
+							}
 							this.recordMidiNote({
 								channel: 1,
 								note: midi,
@@ -2065,6 +2406,12 @@
 					async handleGo() {
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
+						await this.ensureInstrumentSampleReady(this.getSelectedInstrument());
+						await this.ensureInstrumentSampleReady(
+							this.instruments.find(
+								(ins) => ins.name === this.selectedRhythmInstrument,
+							) || this.getSelectedInstrument(),
+						);
 						const newPhrase = this.buildRandomPhrase();
 						const newRhythmPattern = this.buildRandomRhythmPattern();
 						const entry = this.createPhraseEntry(newPhrase, newRhythmPattern);
@@ -2110,6 +2457,10 @@
 					async togglePlay() {
 						this.ensureAudioContext();
 						await this._audio.ctx.resume();
+						await this.ensureInstrumentSampleReady(this.getActiveInstrument());
+						await this.ensureInstrumentSampleReady(
+							this.getActiveRhythmInstrument(),
+						);
 
 						if (!this.phrase.length) {
 							this.phrase = this.buildRandomPhrase();
